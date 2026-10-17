@@ -162,6 +162,17 @@ main{position:relative}
 .th .chips i{display:block;width:14px;height:20px}
 .th em{font-style:normal;color:var(--mute);margin-left:auto;font-size:12px}
 @media (max-width:520px){#thbtn{top:24px}#thpanel{top:62px}}
+#thpanel{max-height:70vh;overflow-y:auto}
+.unit{display:flex;align-items:center;gap:6px;padding:6px;border-bottom:1px solid var(--line);font-size:13px}
+.unit span{margin-right:auto;color:var(--mute)}
+.unit button{min-width:44px;min-height:36px;background:transparent;border:1px solid var(--line);color:var(--ink);cursor:pointer;font-size:13px}
+.unit button.cur{background:var(--b);color:var(--bg);border-color:var(--b)}
+#viewer .bar input{flex:1;min-width:0}
+.inspo{column-count:2;column-gap:8px;margin-top:12px}
+@media (min-width:600px){.inspo{column-count:3}}
+.inspo button{display:block;width:100%;padding:0;margin:0 0 8px;border:1px solid var(--bd);background:var(--bg);break-inside:avoid;cursor:pointer}
+.inspo img{display:block;width:100%;height:auto}
+.inspo span{display:block;padding:6px;font-size:12px;text-align:left;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -171,7 +182,7 @@ main{position:relative}
 <p class="sub">case file: winter bulk, oct 2026 to apr 2027. log lifts and weigh-ins; records, calendar and charts update themselves.</p>
 <div class="stats" id="stats"></div>
 <nav class="tabs">
-<button class="tab" data-tab="log">Log</button><button class="tab" data-tab="cal">Calendar</button><button class="tab" data-tab="prog">Progress</button><button class="tab" data-tab="pr">Records</button><button class="tab" data-tab="data">Backup</button>
+<button class="tab" data-tab="log">Log</button><button class="tab" data-tab="cal">Calendar</button><button class="tab" data-tab="prog">Progress</button><button class="tab" data-tab="pr">Records</button><button class="tab" data-tab="insp">Inspo</button><button class="tab" data-tab="data">Backup</button>
 </nav>
 <div id="view"></div>
 </main>
@@ -194,17 +205,26 @@ function load(){try{const t=localStorage.getItem(KEY);if(t){const o=JSON.parse(t
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let S=load(),tab="log",sel=T,confirmReset=false,liftSel="Leg press";
 let P=[],DB=null,viewing=null,confirmPhoto=null;
+let unit='kg';try{unit=localStorage.getItem('wb:unit')==='lb'?'lb':'kg'}catch(e){}
+const toU=k=>unit==='lb'?k*2.20462:k,fromU=v=>unit==='lb'?v/2.20462:v,fw=k=>+toU(k).toFixed(unit==='lb'?1:2);
 const idb=()=>new Promise((res,rej)=>{try{const q=indexedDB.open('gymlog-photos',1);q.onupgradeneeded=()=>q.result.createObjectStore('p',{keyPath:'id'});q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}catch(e){rej(e)}});
 const st=m=>DB.transaction('p',m).objectStore('p');
 const req=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 async function initPhotos(){try{DB=await idb();const all=await req(st('readonly').getAll());P=[];for(const p of all){if(p.data)P.push({...p,url:p.data});else await req(st('readwrite').delete(p.id))}}catch(e){DB=null}render()}
 function shrink(f){return new Promise((res,rej)=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{const k=Math.min(1,1000/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',0.75))};im.onerror=()=>rej();im.src=u})}
 async function addPhoto(f){if(!f)return;if(!DB){toast('this browser cannot save photos');return}
-try{const data=await shrink(f),el=$('#date'),date=(el&&el.value)||sel,a=$('#angle'),p={id:uid(),date,angle:a?a.value:'front',data};await req(st('readwrite').put(p));P.push({...p,url:data});sel=date;toast('photo saved to '+fmt(date))}catch(e){toast('could not save that photo')}render()}
+try{const data=await shrink(f),el=$('#pdate'),date=(el&&el.value)||sel,a=$('#angle'),p={id:uid(),date,angle:a?a.value:'front',data};await req(st('readwrite').put(p));P.push({...p,url:data});sel=date;toast('photo saved to '+fmt(date))}catch(e){toast('could not save that photo')}render()}
 async function delPhoto(id){const p=P.find(x=>x.id===id);try{await req(st('readwrite').delete(id))}catch(e){}if(p)URL.revokeObjectURL(p.url);P=P.filter(x=>x.id!==id)}
 const photoGrid=l=>l.length?`<div class='ph-grid'>`+l.map(p=>`<button data-photo='${p.id}' aria-label='open photo'><img src='${p.url}' alt=''><span>${fmt(p.date)} ${esc(p.angle)}</span></button>`).join('')+'</div>':'';
 function showViewer(){const v=$('#viewer'),p=viewing&&P.find(x=>x.id===viewing);if(!p){v.hidden=true;v.innerHTML='';return}
-v.hidden=false;v.innerHTML=`<img src='${p.url}' alt='progress photo'><p class='hint'>${fmt(p.date)}, ${esc(p.angle)}</p><div class='bar'><button class='btn' data-a='closev'>close</button><button class='btn ghost' data-a='delphoto'>${confirmPhoto===viewing?'tap again to delete':'delete photo'}</button></div>`}
+const ins=p.kind==='inspo';
+v.hidden=false;v.innerHTML=`<img src='${p.url}' alt='${ins?'inspiration':'progress photo'}'><p class='hint'>${ins?esc(p.caption||'inspiration'):fmt(p.date)+', '+esc(p.angle)}</p>${ins?'':`<div class='bar'><input type='date' id='vdate' value='${p.date}'><button class='btn ghost' data-a='savedate'>save date</button></div>`}<div class='bar'><button class='btn' data-a='closev'>close</button><button class='btn ghost' data-a='delphoto'>${confirmPhoto===viewing?'tap again to delete':'delete'}</button></div>`}
+async function addInspo(fs){if(!fs.length)return;if(!DB){toast('this browser cannot save pictures');return}
+const cap=(($('#icap')||{}).value||'').trim();let n=0;
+for(const f of fs){try{const data=await shrink(f),p={id:uid(),date:T,kind:'inspo',caption:cap,data};await req(st('readwrite').put(p));P.push({...p,url:data});n++}catch(e){}}
+toast(n?'saved '+n+' picture'+(n>1?'s':''):'could not save');render()}
+function vInsp(){const L=P.filter(p=>p.kind==='inspo').sort((a,b)=>a.date<b.date?1:-1);
+return `<h2>gym inspiration</h2><p class='hint'>save pictures that motivate you: a physique goal, lift form, a gym you want to train in, a quote. they stay on this device. tap one to view it full-screen.</p><div class='f'><label class='wide'>caption (optional)<input id='icap' placeholder='e.g. back day goal' autocomplete='off'></label></div><label class='btn pick'>add pictures<input type='file' accept='image/*' multiple id='ipic' class='vh'></label>`+(L.length?`<div class='inspo'>`+L.map(p=>`<button data-photo='${p.id}' aria-label='open picture'><img src='${p.url}' alt=''>${p.caption?`<span>${esc(p.caption)}</span>`:''}</button>`).join('')+'</div>':`<p class='hint'>nothing here yet.</p>`)}
 const now=new Date(),cal={y:now.getFullYear(),m:now.getMonth()};
 let tt;function toast(m){$("#tmsg").textContent=m;$("#toast").classList.add("show");clearTimeout(tt);tt=setTimeout(()=>$("#toast").classList.remove("show"),2600)}
 
@@ -218,11 +238,11 @@ if(p)h+=` PR: ${p.w} x ${p.r}.`;return h}
 
 function stats(){const ds=new Set(S.logs.map(l=>l.date));const ym=T.slice(0,7);const mo=[...ds].filter(d=>d.startsWith(ym)).length;
 const w=new Date();w.setDate(w.getDate()-6);const a=iso(w);const wk=[...ds].filter(d=>d>=a&&d<=T).length;
-const ws=[...S.weights].sort((a,b)=>a.date<b.date?-1:1);const kg=ws.length?ws[ws.length-1].kg:"-";
-return `<div><b>${mo}</b><span>gym days this month</span></div><div><b>${wk}</b><span>last 7 days</span></div><div><b>${kg}</b><span>kg now</span></div><div><b>${ds.size}</b><span>days logged</span></div>`}
+const ws=[...S.weights].sort((a,b)=>a.date<b.date?-1:1);const kg=ws.length?fw(ws[ws.length-1].kg):"-";
+return `<div><b>${mo}</b><span>gym days this month</span></div><div><b>${wk}</b><span>last 7 days</span></div><div><b>${kg}</b><span>${unit} now</span></div><div><b>${ds.size}</b><span>days logged</span></div>`}
 
 function dayList(){const day=S.logs.filter(l=>l.date===sel);
-return `<h2>${fmt(sel)}</h2>`+(day.length?`<ul class="list">`+day.map(l=>`<li><span>${esc(l.ex)}: ${l.w} x ${l.r} x ${l.s}</span><button data-del="${l.id}" aria-label="Delete">×</button></li>`).join("")+"</ul>":`<p class="hint">Nothing logged for this day.</p>`)+photoGrid(P.filter(p=>p.date===sel))}
+return `<h2>${fmt(sel)}</h2>`+(day.length?`<ul class="list">`+day.map(l=>`<li><span>${esc(l.ex)}: ${l.w} x ${l.r} x ${l.s}</span><button data-del="${l.id}" aria-label="Delete">×</button></li>`).join("")+"</ul>":`<p class="hint">Nothing logged for this day.</p>`)+photoGrid(P.filter(p=>p.date===sel&&!p.kind))}
 
 function vLog(){const names=[...new Set([...NAMES,...S.logs.map(l=>l.ex),"Cable lateral raise","Calf raise","Romanian deadlift"])].sort();
 return `<h2>Log a lift</h2><div class="f"><label class="wide">Date<input type="date" id="date" value="${sel}"></label>
@@ -231,10 +251,10 @@ return `<h2>Log a lift</h2><div class="f"><label class="wide">Date<input type="d
 <datalist id="exl">${names.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
 <p class="hint" id="hint"></p><button class="btn" data-a="addlog">Add lift</button>
 ${dayList()}
-<h2>Log a weigh-in</h2><div class="f"><label>Date<input type="date" id="wdate" value="${sel}"></label><label>Weight (kg)<input id="kg" type="number" step="0.05" inputmode="decimal"></label></div><button class="btn" data-a="addw">Save weigh-in</button>
-<h2>log a progress pic</h2><p class='hint'>saves to the date selected at the top of this tab and shows on the calendar. photos stay on this device.</p><div class='f'><label class='wide'>angle<select id='angle'><option>front</option><option>side</option><option>back</option><option>other</option></select></label></div><label class='btn pick'>take or choose photo<input type='file' accept='image/*' id='pic' class='vh'></label>`}
+<h2>Log a weigh-in</h2><div class="f"><label>Date<input type="date" id="wdate" value="${sel}"></label><label>Weight (${unit})<input id="kg" type="number" step="0.05" inputmode="decimal"></label></div><button class="btn" data-a="addw">Save weigh-in</button>
+<h2>log a progress pic</h2><p class='hint'>saves to the date below, so pick an earlier date to add an older picture. it shows on the calendar. photos stay on this device.</p><div class='f'><label class='wide'>date of photo<input type='date' id='pdate' value='${sel}'></label><label class='wide'>angle<select id='angle'><option>front</option><option>side</option><option>back</option><option>other</option></select></label></div><label class='btn pick'>take or choose photo<input type='file' accept='image/*' id='pic' class='vh'></label>`}
 
-function vCal(){const{y,m}=cal;const first=new Date(y,m,1),off=(first.getDay()+6)%7,n=new Date(y,m+1,0).getDate(),days=new Set(S.logs.map(l=>l.date)),pd=new Set(P.map(p=>p.date));
+function vCal(){const{y,m}=cal;const first=new Date(y,m,1),off=(first.getDay()+6)%7,n=new Date(y,m+1,0).getDate(),days=new Set(S.logs.map(l=>l.date)),pd=new Set(P.filter(p=>!p.kind).map(p=>p.date));
 let h=`<div class="calhead"><button data-a="prev" aria-label="Previous month">‹</button><b>${first.toLocaleDateString("en-US",{month:"long",year:"numeric"})}</b><button data-a="next" aria-label="Next month">›</button></div><div class="cal">`+["M","T","W","T","F","S","S"].map(x=>`<i class="dow">${x}</i>`).join("");
 for(let i=0;i<off;i++)h+="<i></i>";
 for(let d=1;d<=n;d++){const s=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;h+=`<button class="d${days.has(s)?" on":""}${s===T?" today":""}${s===sel?" sel":""}${pd.has(s)?" ph":""}" data-day="${s}">${d}</button>`}
@@ -250,9 +270,9 @@ for(const s of series){g+=`<path d="${s.pts.map((p,i)=>(i?"L":"M")+X(p[0]).toFix
 return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Chart">${g}</svg>`}
 
 function wChart(){const ws=[...S.weights].sort((a,b)=>a.date<b.date?-1:1);if(!ws.length)return`<p class="hint">Add a weigh-in to see the chart.</p>`;
-const D=864e5,t0=dt(ws[0].date).getTime(),k0=ws[0].kg,lt=dt(ws[ws.length-1].date).getTime();let x1=t0+183*D;if(lt>x1)x1=lt;
-const mo=(x1-t0)/D/30.4,hi=k0+0.6*mo,lo=k0+0.25*mo,all=[...ws.map(w=>w.kg),lo,hi];
-return chart([{pts:[[t0,k0],[x1,hi]],c:"pj"},{pts:[[t0,k0],[x1,lo]],c:"pj"},{pts:ws.map(w=>[dt(w.date).getTime(),w.kg]),c:"ln",dots:1}],t0,x1,Math.floor(Math.min(...all)-1),Math.ceil(Math.max(...all)+1))}
+const D=864e5,t0=dt(ws[0].date).getTime(),k0=toU(ws[0].kg),lt=dt(ws[ws.length-1].date).getTime();let x1=t0+183*D;if(lt>x1)x1=lt;
+const mo=(x1-t0)/D/30.4,hi=k0+toU(0.6)*mo,lo=k0+toU(0.25)*mo,all=[...ws.map(w=>toU(w.kg)),lo,hi];
+return chart([{pts:[[t0,k0],[x1,hi]],c:"pj"},{pts:[[t0,k0],[x1,lo]],c:"pj"},{pts:ws.map(w=>[dt(w.date).getTime(),toU(w.kg)]),c:"ln",dots:1}],t0,x1,Math.floor(Math.min(...all)-1),Math.ceil(Math.max(...all)+1))}
 
 function lChart(){const m={};S.logs.filter(l=>l.ex===liftSel).forEach(l=>{m[l.date]=Math.max(m[l.date]||0,l.w)});const k=Object.keys(m).sort();
 if(k.length<2)return`<p class="hint">Log this lift on two different days to see a trend.</p>`;
@@ -263,10 +283,10 @@ function vProg(){const p=prs(),cols=["var(--red)","var(--blue)","var(--yellow)",
 const ws=[...S.weights].sort((a,b)=>a.date<b.date?-1:1);const chg=ws.length>1?(ws[ws.length-1].kg-ws[0].kg):0;
 const bars=Object.keys(TG()).map((n,i)=>{const b=p[n]?p[n].w:0;return`<div class="lift"><div class="row"><span>${n}</span><em>${b} of ${TG()[n]}</em></div><div class="track"><div class="now" style="width:${Math.min(100,b/TG()[n]*100)}%;background:${cols[i]}"></div></div></div>`}).join("");
 const names=[...new Set(S.logs.map(l=>l.ex))].sort();
-return `<h2>Bodyweight</h2><p class="hint">${ws.length>1?`Change since first weigh-in: ${chg>=0?"+":""}${chg.toFixed(2)} kg. `:""}Dots are your weigh-ins. Dashed lines are the projected range of 0.25 to 0.6 kg a month.</p>${wChart()}
-<ul class="list">${[...ws].reverse().slice(0,6).map(w=>`<li><span>${fmt(w.date)}: ${w.kg} kg</span><button data-delw="${w.id}" aria-label="Delete">×</button></li>`).join("")}</ul>
+return `<h2>Bodyweight</h2><p class="hint">${ws.length>1?`Change since first weigh-in: ${chg>=0?"+":""}${toU(chg).toFixed(2)} ${unit}. `:""}Dots are your weigh-ins. Dashed lines are the projected range of ${unit==="lb"?"0.55 to 1.3 lb":"0.25 to 0.6 kg"} a month.</p>${wChart()}
+<ul class="list">${[...ws].reverse().slice(0,6).map(w=>`<li><span>${fmt(w.date)}: ${fw(w.kg)} ${unit}</span><button data-delw="${w.id}" aria-label="Delete">×</button></li>`).join("")}</ul>
 <h2>Progress to week 24 targets</h2>${bars}
-<h2>Lift trend</h2><label>Exercise<select id="lsel">${names.map(n=>`<option${n===liftSel?" selected":""}>${esc(n)}</option>`).join("")}</select></label>${lChart()}<h2>progress pics</h2>${P.length?photoGrid([...P].sort((a,b)=>a.date<b.date?1:-1)):`<p class='hint'>no photos yet. add one from the log tab.</p>`}`}
+<h2>Lift trend</h2><label>Exercise<select id="lsel">${names.map(n=>`<option${n===liftSel?" selected":""}>${esc(n)}</option>`).join("")}</select></label>${lChart()}<h2>progress pics</h2>${P.some(p=>!p.kind)?photoGrid(P.filter(p=>!p.kind).sort((a,b)=>a.date<b.date?1:-1)):`<p class='hint'>no photos yet. add one from the log tab.</p>`}`}
 
 function vPr(){const p=prs(),cut=new Date();cut.setDate(cut.getDate()-30);const c=iso(cut);
 return `<h2>Personal records</h2><p class="hint">Heaviest weight per lift, with the most reps at that weight. Updates itself when you log.</p><div class="prs" style="margin-top:12px">`+
@@ -275,18 +295,19 @@ Object.keys(p).sort().map(n=>{const r=p[n],nw=r.d&&r.d>=c;return`<div class="pr$
 function vData(){return `<h2>Backup</h2><p class="hint">Your data is saved in this browser only. Copy this text somewhere safe, or paste a backup here to restore it on another device. Progress photos are stored separately on this device and are not included.</p><textarea id="bk">${esc(JSON.stringify(S))}</textarea><button class="btn" data-a="load">Load pasted backup</button><button class="btn ghost" data-a="reset">${confirmReset?"Tap again to erase everything":"Erase all data"}</button>`}
 
 function render(){document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("act",b.dataset.tab===tab));
-$("#stats").innerHTML=stats();$("#view").innerHTML=({log:vLog,cal:vCal,prog:vProg,pr:vPr,data:vData})[tab]();showViewer()}
+$("#stats").innerHTML=stats();$("#view").innerHTML=({log:vLog,cal:vCal,prog:vProg,pr:vPr,insp:vInsp,data:vData})[tab]();showViewer()}
 
 function addLog(){const ex=$("#ex").value.trim(),w=parseFloat($("#w").value),r=parseInt($("#r").value),s=parseInt($("#s").value)||3,date=$("#date").value||sel;
 if(!ex||isNaN(w)||isNaN(r)){toast("Add an exercise, weight and reps");return}
 const b=prs()[ex];S.logs.push({id:uid(),date,ex,w,r,s});save();sel=date;const p=prs()[ex];
 toast(p.d===date&&p.w===w&&p.r===r&&(!b||b.w!==w||b.r!==r)?`New PR: ${ex} ${w} x ${r}`:"Logged")}
-function addW(){const kg=parseFloat($("#kg").value),date=$("#wdate").value||sel;if(isNaN(kg)){toast("Enter your weight in kg");return}
-S.weights.push({id:uid(),date,kg});save();sel=date;toast("Weigh-in saved")}
+function addW(){const kg=fromU(parseFloat($("#kg").value)),date=$("#wdate").value||sel;if(isNaN(kg)){toast("Enter your weight");return}
+S.weights.push({id:uid(),date,kg:+kg.toFixed(3)});save();sel=date;toast("Weigh-in saved")}
 
 document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data-a],[data-day],[data-del],[data-delw],[data-photo]");if(!b)return;const d=b.dataset;
 if(d.tab){tab=d.tab;confirmReset=false}
 else if(d.a==="prev"||d.a==="next"){cal.m+=d.a==="prev"?-1:1;if(cal.m<0){cal.m=11;cal.y--}if(cal.m>11){cal.m=0;cal.y++}}
+else if(d.a==="savedate"){const nv=$('#vdate').value,q=P.find(x=>x.id===viewing);if(q&&nv){q.date=nv;const{url,...r}=q;req(st('readwrite').put(r)).then(()=>toast('date updated')).catch(()=>toast('could not update'));sel=nv}}
 else if(d.photo)viewing=d.photo;
 else if(d.a==="closev"){viewing=null;confirmPhoto=null}
 else if(d.a==="delphoto"){if(confirmPhoto===viewing){const id=viewing;viewing=null;confirmPhoto=null;delPhoto(id).then(render);return}confirmPhoto=viewing}
@@ -299,7 +320,7 @@ else if(d.a==="load"){try{const o=JSON.parse($("#bk").value);if(!Array.isArray(o
 else if(d.a==="reset"){if(confirmReset){S=seed();save();confirmReset=false;toast("All data erased")}else{confirmReset=true}}
 render()});
 document.addEventListener("input",e=>{if(e.target.id==="ex"&&$("#hint"))$("#hint").textContent=hint(e.target.value.trim())});
-document.addEventListener("change",e=>{if(e.target.id==="date"){sel=e.target.value||sel;render()}else if(e.target.id==="lsel"){liftSel=e.target.value;render()}else if(e.target.id==="pic"){const f=e.target.files[0];e.target.value="";addPhoto(f)}});
+document.addEventListener("change",e=>{if(e.target.id==="date"){sel=e.target.value||sel;render()}else if(e.target.id==="lsel"){liftSel=e.target.value;render()}else if(e.target.id==="pic"){const f=e.target.files[0];e.target.value="";addPhoto(f)}else if(e.target.id==="ipic"){const fs=[...e.target.files];e.target.value="";addInspo(fs)}});
 const THEMES=[
 {n:'gojo',g:'jujutsu kaisen',bg:'#000000',ink:'#ffffff',mute:'#9a9a9a',b:'#7596b5',o:'#e2823a',d:1},
 {n:'sasuke',g:'naruto',bg:'#0e1b2c',ink:'#e9e4d6',mute:'#8f9bab',b:'#7ea3c2',o:'#e0a24f',d:1},
@@ -307,16 +328,26 @@ const THEMES=[
 {n:'luffy',g:'one piece',bg:'#1d1310',ink:'#f0e4d2',mute:'#a39382',b:'#86a0a8',o:'#d5532f',d:1},
 {n:'sukuna',g:'jujutsu kaisen',bg:'#1a1119',ink:'#efe1e6',mute:'#9c8a94',b:'#b784a0',o:'#d8b45c',d:1},
 {n:'sakura',g:'naruto',bg:'#f0e4e2',ink:'#2b2226',mute:'#7c6c70',b:'#9d4b64',o:'#3d6a7a',d:0},
-{n:'naruto',g:'naruto',bg:'#ece6d4',ink:'#1f2530',mute:'#6c6a5f',b:'#3d6080',o:'#b4571d',d:0}];
+{n:'naruto',g:'naruto',bg:'#ece6d4',ink:'#1f2530',mute:'#6c6a5f',b:'#3d6080',o:'#b4571d',d:0},
+{n:'itadori',g:'jujutsu kaisen',bg:'#141824',ink:'#efe6e8',mute:'#9a96a5',b:'#d98ca0',o:'#c8434a',d:1},
+{n:'megumi',g:'jujutsu kaisen',bg:'#0b1118',ink:'#dfe7ea',mute:'#7f909a',b:'#4f8a9a',o:'#d9a05b',d:1},
+{n:'nobara',g:'jujutsu kaisen',bg:'#1b1510',ink:'#f1e4d3',mute:'#a39078',b:'#c9803c',o:'#7aa3a0',d:1},
+{n:'kakashi',g:'naruto',bg:'#15171c',ink:'#e6e8ec',mute:'#8d93a0',b:'#8fa0b8',o:'#d9534f',d:1},
+{n:'itachi',g:'naruto',bg:'#0c0a0b',ink:'#ece4e2',mute:'#958a89',b:'#cf4a42',o:'#8a8f98',d:1},
+{n:'gaara',g:'naruto',bg:'#e8dcc4',ink:'#3a2a20',mute:'#7a6a58',b:'#a63a2c',o:'#4a6a7a',d:0},
+{n:'nami',g:'one piece',bg:'#0f2230',ink:'#f3e8d8',mute:'#8aa0ae',b:'#4aa3c0',o:'#f09a3e',d:1},
+{n:'robin',g:'one piece',bg:'#1a1322',ink:'#ece4f2',mute:'#9a8fa8',b:'#8a74b8',o:'#d9b4a0',d:1},
+{n:'sanji',g:'one piece',bg:'#0e0e10',ink:'#f3efe0',mute:'#94938a',b:'#e6c84a',o:'#6f8fb0',d:1},
+{n:'law',g:'one piece',bg:'#101a1c',ink:'#eee8d4',mute:'#8e9c9b',b:'#3f9aa0',o:'#e8c13c',d:1}];
 let curTheme='gojo';
 function applyTheme(n){n=({sumi:'gojo',ai:'sasuke',matcha:'zoro',shu:'luffy',nasu:'sukuna',washi:'naruto'})[n]||n;const t=THEMES.find(x=>x.n===n)||THEMES[0],s=document.documentElement.style;curTheme=t.n;
 s.setProperty('--bg',t.bg);s.setProperty('--ink',t.ink);s.setProperty('--mute',t.mute);s.setProperty('--b',t.b);s.setProperty('--o',t.o);s.setProperty('color-scheme',t.d?'dark':'light');
 const m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',t.bg);
 try{localStorage.setItem('wb:theme',t.n)}catch(e){}}
-function buildThemes(){$('#thpanel').innerHTML=THEMES.map(t=>`<button class='th${t.n===curTheme?' cur':''}' data-th='${t.n}'><span class='chips'><i style='background:${t.bg}'></i><i style='background:${t.b}'></i><i style='background:${t.o}'></i></span>${t.n}<em>${t.g}</em></button>`).join('')}
+function buildThemes(){$('#thpanel').innerHTML=`<div class='unit'><span>units</span><button data-unit='kg' class='${unit==='kg'?'cur':''}'>kg</button><button data-unit='lb' class='${unit==='lb'?'cur':''}'>lb</button></div>`+THEMES.map(t=>`<button class='th${t.n===curTheme?' cur':''}' data-th='${t.n}'><span class='chips'><i style='background:${t.bg}'></i><i style='background:${t.b}'></i><i style='background:${t.o}'></i></span>${t.n}<em>${t.g}</em></button>`).join('')}
 try{applyTheme(localStorage.getItem('wb:theme'))}catch(e){applyTheme('')}
 $('#thbtn').addEventListener('click',()=>{const p=$('#thpanel');p.hidden=!p.hidden;$('#thbtn').setAttribute('aria-expanded',String(!p.hidden));if(!p.hidden)buildThemes()});
-$('#thpanel').addEventListener('click',e=>{const b=e.target.closest('[data-th]');if(!b)return;applyTheme(b.dataset.th);$('#thpanel').hidden=true;$('#thbtn').setAttribute('aria-expanded','false')});
+$('#thpanel').addEventListener('click',e=>{const u=e.target.closest('[data-unit]');if(u){unit=u.dataset.unit;try{localStorage.setItem('wb:unit',unit)}catch(x){}buildThemes();render();return}const b=e.target.closest('[data-th]');if(!b)return;applyTheme(b.dataset.th);$('#thpanel').hidden=true;$('#thbtn').setAttribute('aria-expanded','false')});
 document.addEventListener('click',e=>{if(!e.target.closest('#thpanel,#thbtn')){$('#thpanel').hidden=true;$('#thbtn').setAttribute('aria-expanded','false')}});
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0)navigator.serviceWorker.register('sw.js').catch(()=>{});
