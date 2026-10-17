@@ -173,6 +173,22 @@ main{position:relative}
 .inspo button{display:block;width:100%;padding:0;margin:0 0 8px;border:1px solid var(--bd);background:var(--bg);break-inside:avoid;cursor:pointer}
 .inspo img{display:block;width:100%;height:auto}
 .inspo span{display:block;padding:6px;font-size:12px;text-align:left;color:var(--ink)}
+h1{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.tab.hid{display:none}
+.pr.wk{border-color:var(--o);box-shadow:0 0 0 1px var(--o)}
+.pr em.wk{align-self:flex-start;margin-top:4px;padding:1px 6px;background:var(--o);color:var(--bg)}
+#prfx{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;background:color-mix(in srgb,var(--bg) 60%,transparent)}
+#prfx.go{animation:prfade 2.7s ease both}
+.prbox{position:relative;isolation:isolate;text-align:center;padding:28px 36px;animation:prpop .55s cubic-bezier(.2,1.3,.4,1) both}
+.prbox b{display:block;font-size:clamp(44px,13vw,76px);font-weight:700;letter-spacing:.08em;line-height:1;color:var(--ink);text-shadow:0 0 10px var(--o),0 0 26px var(--o),0 0 54px color-mix(in srgb,var(--o) 60%,transparent);animation:prglow 1.1s ease-in-out infinite alternate}
+.prbox span{display:block;margin-top:10px;font-size:16px;color:var(--ink)}
+.prbox em{display:block;font-style:normal;font-size:24px;color:var(--o)}
+.halo{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px 0 0 -150px;z-index:-1;border-radius:50%!important;background:radial-gradient(circle,color-mix(in srgb,var(--o) 45%,transparent) 0%,transparent 65%);animation:prring 1.5s ease-out both}
+@keyframes prfade{0%{opacity:0}10%{opacity:1}78%{opacity:1}100%{opacity:0}}
+@keyframes prpop{0%{transform:scale(.6)}100%{transform:scale(1)}}
+@keyframes prglow{from{text-shadow:0 0 6px var(--o),0 0 16px var(--o)}to{text-shadow:0 0 14px var(--o),0 0 36px var(--o),0 0 72px color-mix(in srgb,var(--o) 70%,transparent)}}
+@keyframes prring{0%{transform:scale(.3);opacity:.95}100%{transform:scale(1.5);opacity:0}}
+@media (prefers-reduced-motion:reduce){.prbox,.prbox b,.halo{animation:none}#prfx.go{animation:prfade 2.2s linear both}}
 </style>
 </head>
 <body>
@@ -182,12 +198,13 @@ main{position:relative}
 <p class="sub">case file: winter bulk, oct 2026 to apr 2027. log lifts and weigh-ins; records, calendar and charts update themselves.</p>
 <div class="stats" id="stats"></div>
 <nav class="tabs">
-<button class="tab" data-tab="log">Log</button><button class="tab" data-tab="cal">Calendar</button><button class="tab" data-tab="prog">Progress</button><button class="tab" data-tab="pr">Records</button><button class="tab" data-tab="insp">Inspo</button><button class="tab" data-tab="data">Backup</button>
+<button class="tab" data-tab="log">Log</button><button class="tab" data-tab="cal">Calendar</button><button class="tab" data-tab="prog">Progress</button><button class="tab" data-tab="pr">Records</button><button class="tab hid" data-tab="insp">Inspo</button><button class="tab" data-tab="data">Backup</button>
 </nav>
 <div id="view"></div>
 </main>
 <div id="toast"><span id="tmsg"></span></div>
 <div id="viewer" hidden></div>
+<div id="prfx" aria-live="polite"></div>
 <script>
 const KEY="wb:v1";
 const NAMES=["Barbell curl", "Bicep machine", "Cable chest press", "Cable lateral raise", "Cable shoulder press", "Calf raise", "Converging chest press", "Converging shoulder press", "DB shoulder press", "Hip abduction", "Hip adduction", "Incline DB press", "Lat pulldown", "Leg curl", "Leg extension", "Leg press", "Low row", "Overhead DB tricep ext", "Pec fly", "Rear delt", "Romanian deadlift", "Seated row", "Tricep pushdown"];
@@ -219,6 +236,7 @@ const photoGrid=l=>l.length?`<div class='ph-grid'>`+l.map(p=>`<button data-photo
 function showViewer(){const v=$('#viewer'),p=viewing&&P.find(x=>x.id===viewing);if(!p){v.hidden=true;v.innerHTML='';return}
 const ins=p.kind==='inspo';
 v.hidden=false;v.innerHTML=`<img src='${p.url}' alt='${ins?'inspiration':'progress photo'}'><p class='hint'>${ins?esc(p.caption||'inspiration'):fmt(p.date)+', '+esc(p.angle)}</p>${ins?'':`<div class='bar'><input type='date' id='vdate' value='${p.date}'><button class='btn ghost' data-a='savedate'>save date</button></div>`}<div class='bar'><button class='btn' data-a='closev'>close</button><button class='btn ghost' data-a='delphoto'>${confirmPhoto===viewing?'tap again to delete':'delete'}</button></div>`}
+let pt;function prFx(ex,w,r){const f=$('#prfx');f.innerHTML=`<div class='prbox'><i class='halo'></i><b>new pr</b><span>${esc(ex)}</span><em>${w} x ${r}</em></div>`;f.classList.remove('go');void f.offsetWidth;f.classList.add('go');clearTimeout(pt);pt=setTimeout(()=>f.classList.remove('go'),2700)}
 async function addInspo(fs){if(!fs.length)return;if(!DB){toast('this browser cannot save pictures');return}
 const cap=(($('#icap')||{}).value||'').trim();let n=0;
 for(const f of fs){try{const data=await shrink(f),p={id:uid(),date:T,kind:'inspo',caption:cap,data};await req(st('readwrite').put(p));P.push({...p,url:data});n++}catch(e){}}
@@ -288,19 +306,20 @@ return `<h2>Bodyweight</h2><p class="hint">${ws.length>1?`Change since first wei
 <h2>Progress to week 24 targets</h2>${bars}
 <h2>Lift trend</h2><label>Exercise<select id="lsel">${names.map(n=>`<option${n===liftSel?" selected":""}>${esc(n)}</option>`).join("")}</select></label>${lChart()}<h2>progress pics</h2>${P.some(p=>!p.kind)?photoGrid(P.filter(p=>!p.kind).sort((a,b)=>a.date<b.date?1:-1)):`<p class='hint'>no photos yet. add one from the log tab.</p>`}`}
 
-function vPr(){const p=prs(),cut=new Date();cut.setDate(cut.getDate()-30);const c=iso(cut);
-return `<h2>Personal records</h2><p class="hint">Heaviest weight per lift, with the most reps at that weight. Updates itself when you log.</p><div class="prs" style="margin-top:12px">`+
-Object.keys(p).sort().map(n=>{const r=p[n],nw=r.d&&r.d>=c;return`<div class="pr${nw?" new":""}"><span>${esc(n)}</span><b>${r.w} x ${r.r}</b><i>${r.d?fmt(r.d):"before Oct"}</i>${nw?"<em>New this month</em>":""}</div>`}).join("")+"</div>"}
+function vPr(){const p=prs(),d1=new Date(),d2=new Date();d1.setDate(d1.getDate()-6);d2.setDate(d2.getDate()-30);const w=iso(d1),m=iso(d2);
+const ks=Object.keys(p).sort(),nWk=ks.filter(n=>p[n].d&&p[n].d>=w).length;
+return `<h2>Personal records</h2><p class="hint">Heaviest weight per lift, with the most reps at that weight. Updates itself when you log.${nWk?" "+nWk+" new this week.":""}</p><div class="prs" style="margin-top:12px">`+
+ks.map(n=>{const r=p[n],wk=r.d&&r.d>=w,mo=!wk&&r.d&&r.d>=m;return`<div class="pr${wk?" wk":mo?" new":""}"><span>${esc(n)}</span><b>${r.w} x ${r.r}</b><i>${r.d?fmt(r.d):"earlier"}</i>${wk?"<em class='wk'>new this week</em>":mo?"<em>new this month</em>":""}</div>`}).join("")+"</div>"}
 
 function vData(){return `<h2>Backup</h2><p class="hint">Your data is saved in this browser only. Copy this text somewhere safe, or paste a backup here to restore it on another device. Progress photos are stored separately on this device and are not included.</p><textarea id="bk">${esc(JSON.stringify(S))}</textarea><button class="btn" data-a="load">Load pasted backup</button><button class="btn ghost" data-a="reset">${confirmReset?"Tap again to erase everything":"Erase all data"}</button>`}
 
-function render(){document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("act",b.dataset.tab===tab));
+function render(){document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("act",b.dataset.tab===tab);if(b.dataset.tab==="insp")b.classList.toggle("hid",tab!=="insp")});
 $("#stats").innerHTML=stats();$("#view").innerHTML=({log:vLog,cal:vCal,prog:vProg,pr:vPr,insp:vInsp,data:vData})[tab]();showViewer()}
 
 function addLog(){const ex=$("#ex").value.trim(),w=parseFloat($("#w").value),r=parseInt($("#r").value),s=parseInt($("#s").value)||3,date=$("#date").value||sel;
 if(!ex||isNaN(w)||isNaN(r)){toast("Add an exercise, weight and reps");return}
 const b=prs()[ex];S.logs.push({id:uid(),date,ex,w,r,s});save();sel=date;const p=prs()[ex];
-toast(p.d===date&&p.w===w&&p.r===r&&(!b||b.w!==w||b.r!==r)?`New PR: ${ex} ${w} x ${r}`:"Logged")}
+if(p.d===date&&p.w===w&&p.r===r&&(!b||b.w!==w||b.r!==r))prFx(ex,w,r);else toast("Logged")}
 function addW(){const kg=fromU(parseFloat($("#kg").value)),date=$("#wdate").value||sel;if(isNaN(kg)){toast("Enter your weight");return}
 S.weights.push({id:uid(),date,kg:+kg.toFixed(3)});save();sel=date;toast("Weigh-in saved")}
 
@@ -338,7 +357,14 @@ const THEMES=[
 {n:'nami',g:'one piece',bg:'#0f2230',ink:'#f3e8d8',mute:'#8aa0ae',b:'#4aa3c0',o:'#f09a3e',d:1},
 {n:'robin',g:'one piece',bg:'#1a1322',ink:'#ece4f2',mute:'#9a8fa8',b:'#8a74b8',o:'#d9b4a0',d:1},
 {n:'sanji',g:'one piece',bg:'#0e0e10',ink:'#f3efe0',mute:'#94938a',b:'#e6c84a',o:'#6f8fb0',d:1},
-{n:'law',g:'one piece',bg:'#101a1c',ink:'#eee8d4',mute:'#8e9c9b',b:'#3f9aa0',o:'#e8c13c',d:1}];
+{n:'law',g:'one piece',bg:'#101a1c',ink:'#eee8d4',mute:'#8e9c9b',b:'#3f9aa0',o:'#e8c13c',d:1},
+{n:'pikachu',g:'pokemon',bg:'#121110',ink:'#f6efd8',mute:'#9a9582',b:'#f2c82e',o:'#d6402f',d:1},
+{n:'charizard',g:'pokemon',bg:'#1a1210',ink:'#f4e6d6',mute:'#a69080',b:'#ec7a2c',o:'#3f8f9a',d:1},
+{n:'squirtle',g:'pokemon',bg:'#0e1a24',ink:'#e6f0f4',mute:'#86a0ae',b:'#5ab0d8',o:'#c68a4a',d:1},
+{n:'bulbasaur',g:'pokemon',bg:'#0f1c1a',ink:'#e4f0e4',mute:'#86a094',b:'#5fb3a1',o:'#c8d65f',d:1},
+{n:'gengar',g:'pokemon',bg:'#170f22',ink:'#ece0f4',mute:'#9a88aa',b:'#9a6fd0',o:'#e0505a',d:1},
+{n:'eevee',g:'pokemon',bg:'#efe1cc',ink:'#3a2a1c',mute:'#85715a',b:'#a8683a',o:'#5a7a9a',d:0},
+{n:'mewtwo',g:'pokemon',bg:'#1c1a24',ink:'#e8e4ee',mute:'#928da0',b:'#b9a3d6',o:'#6cc4c8',d:1}];
 let curTheme='gojo';
 function applyTheme(n){n=({sumi:'gojo',ai:'sasuke',matcha:'zoro',shu:'luffy',nasu:'sukuna',washi:'naruto'})[n]||n;const t=THEMES.find(x=>x.n===n)||THEMES[0],s=document.documentElement.style;curTheme=t.n;
 s.setProperty('--bg',t.bg);s.setProperty('--ink',t.ink);s.setProperty('--mute',t.mute);s.setProperty('--b',t.b);s.setProperty('--o',t.o);s.setProperty('color-scheme',t.d?'dark':'light');
@@ -349,6 +375,7 @@ try{applyTheme(localStorage.getItem('wb:theme'))}catch(e){applyTheme('')}
 $('#thbtn').addEventListener('click',()=>{const p=$('#thpanel');p.hidden=!p.hidden;$('#thbtn').setAttribute('aria-expanded',String(!p.hidden));if(!p.hidden)buildThemes()});
 $('#thpanel').addEventListener('click',e=>{const u=e.target.closest('[data-unit]');if(u){unit=u.dataset.unit;try{localStorage.setItem('wb:unit',unit)}catch(x){}buildThemes();render();return}const b=e.target.closest('[data-th]');if(!b)return;applyTheme(b.dataset.th);$('#thpanel').hidden=true;$('#thbtn').setAttribute('aria-expanded','false')});
 document.addEventListener('click',e=>{if(!e.target.closest('#thpanel,#thbtn')){$('#thpanel').hidden=true;$('#thbtn').setAttribute('aria-expanded','false')}});
+let tapN=0,tapT;$('h1').addEventListener('click',()=>{tapN++;clearTimeout(tapT);tapT=setTimeout(()=>{tapN=0},900);if(tapN>=3){tapN=0;tab='insp';render()}});
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0)navigator.serviceWorker.register('sw.js').catch(()=>{});
 render();initPhotos();
