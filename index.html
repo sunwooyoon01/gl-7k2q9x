@@ -149,9 +149,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 #viewer .btn{flex:1;margin:0;width:auto}
 :root:root:root{--bg:#000;--ink:#fff;--mute:#9a9a9a;--b:#7596b5;--o:#e2823a;--card:var(--bg);--line:color-mix(in srgb,var(--b) 38%,transparent);--bd:color-mix(in srgb,var(--b) 70%,var(--bg));--red:var(--o);--blue:var(--b);--yellow:var(--o);--green:var(--b);--white:var(--ink)}
 main{position:relative}
-#thbtn{position:absolute;top:32px;right:14px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;gap:2px;background:transparent;border:1px solid var(--bd);cursor:pointer;padding:0}
-#thbtn::before{content:'';position:absolute;inset:-8px}
-#thbtn i{display:block;width:8px;height:14px}
+#thbtn{position:absolute;top:30px;right:14px;width:32px;height:32px;z-index:2;display:flex;align-items:center;justify-content:center;gap:2px;background:transparent;border:1px solid var(--bd);cursor:pointer;padding:0}
+#thbtn::before{content:'';position:absolute;inset:-10px}
+#thbtn i{display:block;width:9px;height:16px}
 #thbtn i:first-child{background:var(--b)}#thbtn i:last-child{background:var(--o)}
 #thpanel{position:absolute;top:70px;right:14px;z-index:5;width:230px;background:var(--bg);border:1px solid var(--ink);padding:6px}
 #thpanel[hidden]{display:none}
@@ -189,13 +189,13 @@ h1{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-ac
 @keyframes prglow{from{text-shadow:0 0 6px var(--o),0 0 16px var(--o)}to{text-shadow:0 0 14px var(--o),0 0 36px var(--o),0 0 72px color-mix(in srgb,var(--o) 70%,transparent)}}
 @keyframes prring{0%{transform:scale(.3);opacity:.95}100%{transform:scale(1.5);opacity:0}}
 @media (prefers-reduced-motion:reduce){.prbox,.prbox b,.halo{animation:none}#prfx.go{animation:prfade 2.2s linear both}}
+#ttl{display:inline-block}
 </style>
 </head>
 <body>
 <main>
 <button id='thbtn' aria-label='change color theme' aria-expanded='false'><i></i><i></i></button><div id='thpanel' hidden></div>
-<h1>gym log</h1>
-<p class="sub">case file: winter bulk, oct 2026 to apr 2027. log lifts and weigh-ins; records, calendar and charts update themselves.</p>
+<h1><span id='ttl'>gym log</span></h1>
 <div class="stats" id="stats"></div>
 <nav class="tabs">
 <button class="tab" data-tab="log">Log</button><button class="tab" data-tab="cal">Calendar</button><button class="tab" data-tab="prog">Progress</button><button class="tab" data-tab="pr">Records</button><button class="tab hid" data-tab="insp">Inspo</button><button class="tab" data-tab="data">Backup</button>
@@ -342,29 +342,12 @@ document.addEventListener("input",e=>{if(e.target.id==="ex"&&$("#hint"))$("#hint
 document.addEventListener("change",e=>{if(e.target.id==="date"){sel=e.target.value||sel;render()}else if(e.target.id==="lsel"){liftSel=e.target.value;render()}else if(e.target.id==="pic"){const f=e.target.files[0];e.target.value="";addPhoto(f)}else if(e.target.id==="ipic"){const fs=[...e.target.files];e.target.value="";addInspo(fs)}});
 const THEMES=[
 {n:'gojo',g:'jujutsu kaisen',bg:'#000000',ink:'#ffffff',mute:'#9a9a9a',b:'#7596b5',o:'#e2823a',d:1},
-{n:'sasuke',g:'naruto',bg:'#0e1b2c',ink:'#e9e4d6',mute:'#8f9bab',b:'#7ea3c2',o:'#e0a24f',d:1},
-{n:'zoro',g:'one piece',bg:'#121d17',ink:'#e8e5d2',mute:'#8e9a8c',b:'#8fae91',o:'#d6a542',d:1},
-{n:'luffy',g:'one piece',bg:'#1d1310',ink:'#f0e4d2',mute:'#a39382',b:'#86a0a8',o:'#d5532f',d:1},
-{n:'sukuna',g:'jujutsu kaisen',bg:'#1a1119',ink:'#efe1e6',mute:'#9c8a94',b:'#b784a0',o:'#d8b45c',d:1},
-{n:'sakura',g:'naruto',bg:'#f0e4e2',ink:'#2b2226',mute:'#7c6c70',b:'#9d4b64',o:'#3d6a7a',d:0},
-{n:'naruto',g:'naruto',bg:'#ece6d4',ink:'#1f2530',mute:'#6c6a5f',b:'#3d6080',o:'#b4571d',d:0},
-{n:'itadori',g:'jujutsu kaisen',bg:'#141824',ink:'#efe6e8',mute:'#9a96a5',b:'#d98ca0',o:'#c8434a',d:1},
-{n:'megumi',g:'jujutsu kaisen',bg:'#0b1118',ink:'#dfe7ea',mute:'#7f909a',b:'#4f8a9a',o:'#d9a05b',d:1},
-{n:'nobara',g:'jujutsu kaisen',bg:'#1b1510',ink:'#f1e4d3',mute:'#a39078',b:'#c9803c',o:'#7aa3a0',d:1},
-{n:'kakashi',g:'naruto',bg:'#15171c',ink:'#e6e8ec',mute:'#8d93a0',b:'#8fa0b8',o:'#d9534f',d:1},
-{n:'itachi',g:'naruto',bg:'#0c0a0b',ink:'#ece4e2',mute:'#958a89',b:'#cf4a42',o:'#8a8f98',d:1},
 {n:'gaara',g:'naruto',bg:'#e8dcc4',ink:'#3a2a20',mute:'#7a6a58',b:'#a63a2c',o:'#4a6a7a',d:0},
-{n:'nami',g:'one piece',bg:'#0f2230',ink:'#f3e8d8',mute:'#8aa0ae',b:'#4aa3c0',o:'#f09a3e',d:1},
+{n:'zoro',g:'one piece',bg:'#121d17',ink:'#e8e5d2',mute:'#8e9a8c',b:'#8fae91',o:'#d6a542',d:1},
 {n:'robin',g:'one piece',bg:'#1a1322',ink:'#ece4f2',mute:'#9a8fa8',b:'#8a74b8',o:'#d9b4a0',d:1},
-{n:'sanji',g:'one piece',bg:'#0e0e10',ink:'#f3efe0',mute:'#94938a',b:'#e6c84a',o:'#6f8fb0',d:1},
-{n:'law',g:'one piece',bg:'#101a1c',ink:'#eee8d4',mute:'#8e9c9b',b:'#3f9aa0',o:'#e8c13c',d:1},
-{n:'pikachu',g:'pokemon',bg:'#121110',ink:'#f6efd8',mute:'#9a9582',b:'#f2c82e',o:'#d6402f',d:1},
-{n:'charizard',g:'pokemon',bg:'#1a1210',ink:'#f4e6d6',mute:'#a69080',b:'#ec7a2c',o:'#3f8f9a',d:1},
-{n:'squirtle',g:'pokemon',bg:'#0e1a24',ink:'#e6f0f4',mute:'#86a0ae',b:'#5ab0d8',o:'#c68a4a',d:1},
-{n:'bulbasaur',g:'pokemon',bg:'#0f1c1a',ink:'#e4f0e4',mute:'#86a094',b:'#5fb3a1',o:'#c8d65f',d:1},
-{n:'gengar',g:'pokemon',bg:'#170f22',ink:'#ece0f4',mute:'#9a88aa',b:'#9a6fd0',o:'#e0505a',d:1},
-{n:'eevee',g:'pokemon',bg:'#efe1cc',ink:'#3a2a1c',mute:'#85715a',b:'#a8683a',o:'#5a7a9a',d:0},
-{n:'mewtwo',g:'pokemon',bg:'#1c1a24',ink:'#e8e4ee',mute:'#928da0',b:'#b9a3d6',o:'#6cc4c8',d:1}];
+{n:'off white',g:'simple light',bg:'#f4f2ed',ink:'#1c1c1c',mute:'#77756f',b:'#3b4a5c',o:'#b45309',d:0},
+{n:'waterfall',g:'mist and teal',bg:'#0c1b1e',ink:'#e3f1ee',mute:'#84a3a3',b:'#5bc0c4',o:'#8fd19e',d:1},
+{n:'vivid black',g:'neon on black',bg:'#000000',ink:'#ffffff',mute:'#8a8a8a',b:'#3dd9ff',o:'#ff4f81',d:1}];
 let curTheme='gojo';
 function applyTheme(n){n=({sumi:'gojo',ai:'sasuke',matcha:'zoro',shu:'luffy',nasu:'sukuna',washi:'naruto'})[n]||n;const t=THEMES.find(x=>x.n===n)||THEMES[0],s=document.documentElement.style;curTheme=t.n;
 s.setProperty('--bg',t.bg);s.setProperty('--ink',t.ink);s.setProperty('--mute',t.mute);s.setProperty('--b',t.b);s.setProperty('--o',t.o);s.setProperty('color-scheme',t.d?'dark':'light');
@@ -375,7 +358,7 @@ try{applyTheme(localStorage.getItem('wb:theme'))}catch(e){applyTheme('')}
 $('#thbtn').addEventListener('click',()=>{const p=$('#thpanel');p.hidden=!p.hidden;$('#thbtn').setAttribute('aria-expanded',String(!p.hidden));if(!p.hidden)buildThemes()});
 $('#thpanel').addEventListener('click',e=>{const u=e.target.closest('[data-unit]');if(u){unit=u.dataset.unit;try{localStorage.setItem('wb:unit',unit)}catch(x){}buildThemes();render();return}const b=e.target.closest('[data-th]');if(!b)return;applyTheme(b.dataset.th);$('#thpanel').hidden=true;$('#thbtn').setAttribute('aria-expanded','false')});
 document.addEventListener('click',e=>{if(!e.target.closest('#thpanel,#thbtn')){$('#thpanel').hidden=true;$('#thbtn').setAttribute('aria-expanded','false')}});
-let tapN=0,tapT;$('h1').addEventListener('click',()=>{tapN++;clearTimeout(tapT);tapT=setTimeout(()=>{tapN=0},900);if(tapN>=3){tapN=0;tab='insp';render()}});
+let tapN=0,tapT;$('#ttl').addEventListener('click',()=>{tapN++;clearTimeout(tapT);tapT=setTimeout(()=>{tapN=0},900);if(tapN>=3){tapN=0;tab='insp';render()}});
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0)navigator.serviceWorker.register('sw.js').catch(()=>{});
 render();initPhotos();
