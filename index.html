@@ -340,11 +340,11 @@ if(!ex||isNaN(w)||isNaN(r)){toast("Add an exercise, weight and reps");return}
 const b=prs()[ex];S.logs.push({id:uid(),date,ex,w,r,s});save();sel=date;const p=prs()[ex];
 if(p.d===date&&p.w===w&&p.r===r&&(!b||b.w!==w||b.r!==r))prFx(ex,w,r);else toast("Logged")}
 const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return iso(d)};
-const AB=[{n:'crunch',c:'flex',d:1,m:1},{n:'reverse crunch',c:'flex',d:2,h:1},{n:'sit-up',c:'flex',d:2},{n:'v-up',c:'flex',d:3,h:1},
+const AB=[{n:'crunch',c:'flex',d:1,m:1},{n:'reverse crunch',c:'flex',d:2,h:1,hf:1},{n:'sit-up',c:'flex',d:2,hf:1},{n:'weighted crunch',c:'flex',d:2},{n:'v-up',c:'flex',d:3,h:1,hf:1},
 {n:'plank',c:'anti',d:1},{n:'dead bug',c:'anti',d:1},{n:'bird dog',c:'anti',d:1,m:1},{n:'plank shoulder taps',c:'anti',d:2},{n:'hollow hold',c:'anti',d:3},{n:'body saw',c:'anti',d:3},{n:'long-lever plank',c:'anti',d:3},
 {n:'side plank',c:'lat',d:2,m:1,two:1},{n:'ankle touches',c:'lat',d:1},{n:'side plank hip dips',c:'lat',d:3,two:1},
-{n:'bicycle crunch',c:'rot',d:2},{n:'heel taps',c:'rot',d:1},{n:'russian twist',c:'rot',d:2},{n:'windshield wipers',c:'rot',d:3},
-{n:'leg raise',c:'leg',d:2,h:1},{n:'flutter kicks',c:'leg',d:1},{n:'mountain climbers',c:'leg',d:2}];
+{n:'bicycle crunch',c:'rot',d:2},{n:'russian twist',c:'rot',d:2},{n:'windshield wipers',c:'rot',d:3},
+{n:'leg raise',c:'leg',d:2,h:1,hf:1},{n:'flutter kicks',c:'leg',d:1,hf:1}];
 let abSel=S.abs.length?[...S.abs[S.abs.length-1].ex]:[],repText='';
 function abList(){const a=S.abs.filter(c=>c.date===sel);return a.length?`<ul class='list'>`+a.map(c=>`<li><span>ab circuit: ${c.ex.map(esc).join(', ')}</span><button data-delab='${c.id}' aria-label='Delete'>×</button></li>`).join('')+'</ul>':''}
 const MG={'Converging chest press':'chest','Cable chest press':'chest','Incline DB press':'chest','Pec fly':'chest','Lat pulldown':'back','Seated row':'back','Low row':'back','Converging shoulder press':'shoulders','Cable shoulder press':'shoulders','DB shoulder press':'shoulders','Plate-loaded shoulder press':'shoulders','Cable lateral raise':'side delts','Rear delt':'rear delts','Bicep machine':'biceps','Barbell curl':'biceps','Overhead DB tricep ext':'triceps','Tricep pushdown':'triceps','Leg press':'quads','Leg extension':'quads','Leg curl':'hamstrings','Romanian deadlift':'hamstrings','Hip adduction':'adductors','Hip abduction':'glutes','Calf raise':'calves'};
@@ -368,20 +368,20 @@ L.push('bodyweight: '+(a1==null?'no weigh-ins this week':fw(a1)+' '+unit+' avg t
 L.push('how i felt: sleep '+(v('#rsl')||'?')+' h avg, energy '+(v('#ren')||'?')+'/5, appetite '+(v('#rap')||'?')+'/5'+(v('#rno')?'; notes: '+v('#rno'):''));
 L.push('please review: is my volume balanced, am i progressing, and what should i change next week?');return L.join('\n')}
 let tm=null,tmInt=null,tmLock=null,abTier='medium',abMin=10;
-const TIERS={easy:{m:8,W:40,R:20,d:1.2},medium:{m:10,W:45,R:15,d:2},hard:{m:15,W:60,R:15,d:2.8}};
-const CYC={easy:['flex','anti','lat','rot','anti','leg','flex','lat'],medium:['flex','anti','lat','leg','rot','anti','flex','lat','leg','rot'],hard:['flex','leg','anti','lat','rot','flex','leg','anti','lat','rot','flex','anti']};
+const TIERS={easy:{m:8,W:40,R:20,d:1.2},medium:{m:10,W:40,R:20,d:2},hard:{m:15,W:45,R:20,d:2.8}};
+const CYC={easy:['flex','anti','lat','rot','anti','leg','rot','flex'],medium:['flex','anti','lat','rot','leg','anti','flex','lat','rot','anti'],hard:['flex','anti','lat','rot','leg','anti','flex','lat','anti','rot','leg','anti','flex','lat']};
 const seqOf=l=>l.flatMap(n=>n==='side plank'||n==='side plank hip dips'?[n+', left',n+', right']:[n]);
 function abBuild(tier,min){const t=TIERS[tier],segN=Math.max(3,Math.round((min*60+t.R)/(t.W+t.R))),rec={};S.abs.slice(-4).forEach(c=>c.ex.forEach(n=>{rec[n]=(rec[n]||0)+1}));
 const out=[];let segs=0,k=0;
 while(segs<segN&&k<60){const c=CYC[tier][k%CYC[tier].length];k++;
 let cand=AB.filter(a=>a.c===c&&!out.includes(a.n)&&segs+(a.two?2:1)<=segN);if(!cand.length)cand=AB.filter(a=>!out.includes(a.n)&&segs+(a.two?2:1)<=segN);if(!cand.length)break;
-const sc=a=>(rec[a.n]||0)*10+Math.abs(a.d-t.d)*3+Math.random()*2-(a.m?3:0)-(a.h&&tier!=='easy'?4:0);
+const prev=AB.find(a=>a.n===out[out.length-1]),sc=a=>(rec[a.n]||0)*10+Math.abs(a.d-t.d)*3+Math.random()*2-(a.m?3:0)-(a.h&&tier!=='easy'?4:0)+(prev&&prev.hf&&a.hf?25:0);
 const o=cand.map(a=>[a,sc(a)]).sort((x,y)=>x[1]-y[1])[0][0];out.push(o.n);segs+=o.two?2:1}
 return out}
 function tmBlank(src){return{src,seq:[],i:0,phase:'idle',end:0,left:0,dur:0,paused:false,W:60,R:30}}
 function tmOpen(src){if(src==='fresh'){tm=tmBlank(src);tmRebuild();return}
 if(!abSel.length){toast('pick at least one move');return}tm=tmBlank(src);tm.seq=seqOf(abSel);tmDraw()}
-function tmRebuild(){const t=TIERS[abTier];abSel=abBuild(abTier,abMin);tm.W=t.W;tm.R=t.R;tm.seq=seqOf(abSel);tmDraw()}
+function tmRebuild(){const t=TIERS[abTier];abSel=abBuild(abTier,abMin);tm.W=t.W;tm.R=t.R;tm.tempo=abTier==='hard';tm.seq=seqOf(abSel);tmDraw()}
 function tmGo(ph,s){tm.phase=ph;tm.dur=s;tm.end=Date.now()+s*1000;tm.paused=false}
 function tmStart(){try{if(navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>{tmLock=l}).catch(()=>{})}catch(e){}tmGo('ready',5);clearInterval(tmInt);tmInt=setInterval(tmTick,250);tmDraw()}
 function tmEnd(){tm.phase='done';clearInterval(tmInt);try{if(tmLock){tmLock.release();tmLock=null}}catch(e){}}
@@ -398,9 +398,9 @@ function tmDraw(){const v=$('#timer');if(!tm){v.hidden=true;v.innerHTML='';retur
 const n=tm.seq.length,cur=tm.seq[tm.i],nxt=tm.seq[tm.i+1],ph=tm.phase;let body;
 if(ph==='idle'){const mins=Math.round((n*(tm.W+tm.R)-tm.R)/60);
 const ctl=tm.src==='fresh'?`<div class='seg'>${['easy','medium','hard'].map(k=>`<button class='segb${abTier===k?' on':''}' data-a='tmtier' data-id='${k}'>${k} ${TIERS[k].m}</button>`).join('')}</div><div class='len'><button class='x' data-a='tmmin' data-id='-1' aria-label='shorter'>−</button><b>${abMin} min</b><button class='x' data-a='tmmin' data-id='1' aria-label='longer'>+</button></div>`:'';
-body=`${ctl}<p class='hint'>${n} rounds, ${tm.W} sec on, ${tm.R} sec rest, about ${mins} min${tm.seq.some(x=>x.includes(', left'))?'. side planks count twice.':''}</p><ol class='tmlist'>${tm.seq.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><div class='bar'><button class='btn' data-a='tmstart'>Start</button>${tm.src==='fresh'?`<button class='btn ghost' data-a='tmshuf'>Shuffle</button>`:''}<button class='btn ghost' data-a='tmclose'>Close</button></div>`}
+body=`${ctl}<p class='hint'>${n} rounds, ${tm.W} sec on, ${tm.R} sec rest, about ${mins} min${tm.seq.some(x=>x.includes(', left'))?'. side planks count twice.':''}${tm.tempo?'. lower slowly, about 3 sec.':''}</p><ol class='tmlist'>${tm.seq.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><div class='bar'><button class='btn' data-a='tmstart'>Start</button>${tm.src==='fresh'?`<button class='btn ghost' data-a='tmshuf'>Shuffle</button>`:''}<button class='btn ghost' data-a='tmclose'>Close</button></div>`}
 else if(ph==='done')body=`<div class='tmname'>circuit complete</div><p class='hint'>${n} rounds done</p><div class='bar'><button class='btn' data-a='tmlog'>Log circuit</button><button class='btn ghost' data-a='tmclose'>Close</button></div>`;
-else{const rest=ph==='rest',left=tm.paused?Math.ceil(tm.left/1000):Math.max(0,Math.ceil((tm.end-Date.now())/1000)),name=rest?nxt:cur,lab=ph==='ready'?'get ready':rest?'rest, next up':'work';
+else{const rest=ph==='rest',left=tm.paused?Math.ceil(tm.left/1000):Math.max(0,Math.ceil((tm.end-Date.now())/1000)),name=rest?nxt:cur,lab=ph==='ready'?'get ready':rest?'rest, next up':'work'+(tm.tempo?', 3 sec lowering':'');
 body=`<p class='hint'>round ${tm.i+1+(rest?1:0)} of ${n}</p><p class='tmlab'>${lab}</p><div class='tmname'>${esc(name)}</div><div class='tmclock' id='tmclock'>${tmClock(left)}</div><div class='tmprog'><i id='tmbar' style='width:${Math.min(100,(1-left/tm.dur)*100)}%'></i></div><p class='hint'>${!rest&&nxt?'next: '+esc(nxt):'&nbsp;'}</p><div class='bar'><button class='btn' data-a='tmpause'>${tm.paused?'Resume':'Pause'}</button><button class='btn ghost' data-a='tmskip'>Skip</button><button class='btn ghost' data-a='tmclose'>End</button></div>`}
 v.innerHTML=`<div class='tmwrap'>${body}</div>`}
 function copyRep(){const t=$('#rep');if(!t)return;const fb=()=>{t.select();try{document.execCommand('copy');toast('copied')}catch(x){toast('select the text and copy it')}};try{navigator.clipboard.writeText(repText).then(()=>toast('copied')).catch(fb)}catch(e){fb()}}
