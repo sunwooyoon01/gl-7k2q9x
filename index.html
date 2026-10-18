@@ -207,6 +207,9 @@ h1{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-ac
 .segb{flex:1;min-height:44px;background:transparent;border:1px solid var(--b);color:var(--b);font:inherit;cursor:pointer}
 .segb.on{background:var(--b);color:var(--bg)}
 .len{display:flex;align-items:center;justify-content:center;gap:16px;margin:4px 0 8px;font-size:18px}.len b{font-weight:400;min-width:80px}
+.expick{display:flex;flex-wrap:wrap;max-height:176px;overflow-y:auto;margin:6px 0 12px;padding:6px;border:1px solid var(--line)}
+.ab i{font-style:normal;color:var(--mute);font-size:11px;margin-left:6px}.ab.on i{color:var(--bg)}
+.mgx{font-style:normal;color:var(--mute);font-size:12px;flex:none}
 </style>
 </head>
 <body>
@@ -229,14 +232,14 @@ const NAMES=["Barbell curl", "Bicep machine", "Cable chest press", "Cable latera
 const TG=()=>S.targets||{};
 const RANGE={"Leg press":[8,10],"Lat pulldown":[8,10],"Converging chest press":[8,10],"Bicep machine":[8,10],"Cable shoulder press":[8,10],"Rear delt":[12,15],"Cable lateral raise":[12,15],"Calf raise":[12,15],"Overhead DB tricep ext":[10,12],"Pec fly":[10,12],"Low row":[10,12],"Seated row":[10,12],"Hip adduction":[10,12],"Cable chest press":[10,12]};
 const $=s=>document.querySelector(s);
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const dt=s=>new Date(s+"T12:00:00");
 const fmt=s=>dt(s).toLocaleDateString("en-US",{month:"short",day:"numeric"}).toLowerCase();
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const T=iso(new Date());
-function seed(){return{logs:[],weights:[],abs:[]}}
-function load(){try{const t=localStorage.getItem(KEY);if(t){const o=JSON.parse(t);if(o&&Array.isArray(o.logs)&&Array.isArray(o.weights)){o.abs=o.abs||[];return o}}}catch(e){}return seed()}
+function seed(){return{logs:[],weights:[],abs:[],ex:{}}}
+function load(){try{const t=localStorage.getItem(KEY);if(t){const o=JSON.parse(t);if(o&&Array.isArray(o.logs)&&Array.isArray(o.weights)){o.abs=o.abs||[];o.ex=o.ex||{};return o}}}catch(e){}return seed()}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let S=load(),tab="log",sel=T,confirmReset=false,liftSel="Leg press";
 let P=[],DB=null,viewing=null,confirmPhoto=null;
@@ -278,14 +281,14 @@ const ws=[...S.weights].sort((a,b)=>a.date<b.date?-1:1);const kg=ws.length?fw(ws
 return `<div><b>${mo}</b><span>gym days this month</span></div><div><b>${wk}</b><span>last 7 days</span></div><div><b>${kg}</b><span>${unit} now</span></div><div><b>${ds.size}</b><span>days logged</span></div>`}
 
 function dayList(){const day=S.logs.filter(l=>l.date===sel);
-return `<h2>${fmt(sel)}</h2>`+(day.length?`<ul class="list">`+day.map(l=>`<li><span>${esc(l.ex)}: ${l.w} x ${l.r} x ${l.s}</span><button data-del="${l.id}" aria-label="Delete">×</button></li>`).join("")+"</ul>":`<p class="hint">Nothing logged for this day.</p>`)+abList()+photoGrid(P.filter(p=>p.date===sel&&!p.kind))}
+return `<h2>${fmt(sel)}</h2>`+(day.length?`<ul class="list">`+day.map(l=>`<li><span>${esc(l.ex)}: ${l.w} x ${l.r} x ${l.s}</span><em class='mgx'>${mgOf(l.ex)}</em><button data-del="${l.id}" aria-label="Delete">×</button></li>`).join("")+"</ul>":`<p class="hint">Nothing logged for this day.</p>`)+abList()+photoGrid(P.filter(p=>p.date===sel&&!p.kind))}
 
-function vLog(){const names=[...new Set([...NAMES,...S.logs.map(l=>l.ex),"Cable lateral raise","Calf raise","Romanian deadlift"])].sort();
-return `<h2>Log a lift</h2><div class="f"><label class="wide">Date<input type="date" id="date" value="${sel}"></label>
+function vLog(){const names=[...new Set([...allEx().map(e=>e.n),...S.logs.map(l=>l.ex)])].sort();
+return `<h2>Log a lift</h2><div id='expk'>${pickHTML()}</div><div class="f"><label class="wide">Date<input type="date" id="date" value="${sel}"></label>
 <label class="wide">Exercise<input id="ex" list="exl" placeholder="Start typing, e.g. Leg press" autocomplete="off"></label>
 <label>Weight<input id="w" type="number" step="0.5" inputmode="decimal"></label><label>Reps<input id="r" type="number" inputmode="numeric"></label><label>Sets<input id="s" type="number" value="3" inputmode="numeric"></label></div>
 <datalist id="exl">${names.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
-<p class="hint" id="hint"></p><button class="btn" data-a="addlog">Add lift</button>
+<p class="hint" id="hint"></p><div id='xnew'></div><button class="btn" data-a="addlog">Add lift</button>
 ${dayList()}
 <h2>Log an ab circuit</h2><p class='hint'>1 min on, 30 sec rest. tap moves to build up to 8, in order. my usual and suggest fresh open the timer, where fresh lets you pick a difficulty and length.</p><div class='abpick'>${AB.map(a=>`<button class='ab${abSel.includes(a.n)?' on':''}' data-ab='${a.n}'>${a.n}</button>`).join('')}</div><p class='hint'>circuit (${abSel.length}/8): ${abSel.length?abSel.join(', '):'none yet'}</p><button class='btn' data-a='logab'>Log circuit</button><button class='btn ghost' data-a='abusual'>My usual</button><button class='btn ghost' data-a='absug'>Suggest fresh</button><button class='btn ghost' data-a='abstart'>Start timer</button><button class='btn ghost' data-a='abclr'>Clear</button>
 <h2>Log a weigh-in</h2><div class="f"><label>Date<input type="date" id="wdate" value="${sel}"></label><label>Weight (${unit})<input id="kg" type="number" step="0.05" inputmode="decimal"></label></div><button class="btn" data-a="addw">Save weigh-in</button>
@@ -323,20 +326,21 @@ const names=[...new Set(S.logs.map(l=>l.ex))].sort();
 return `<h2>Bodyweight</h2><p class="hint">${ws.length>1?`Change since first weigh-in: ${chg>=0?"+":""}${toU(chg).toFixed(2)} ${unit}. `:""}Dots are your weigh-ins. Dashed lines are the projected range of ${unit==="lb"?"0.55 to 1.3 lb":"0.25 to 0.6 kg"} a month.</p>${wChart()}
 <ul class="list">${[...ws].reverse().slice(0,6).map(w=>`<li><span>${fmt(w.date)}: ${fw(w.kg)} ${unit}</span><button data-delw="${w.id}" aria-label="Delete">×</button></li>`).join("")}</ul>
 <h2>Progress to week 24 targets</h2>${bars}
-<h2>Lift trend</h2><label>Exercise<select id="lsel">${names.map(n=>`<option${n===liftSel?" selected":""}>${esc(n)}</option>`).join("")}</select></label>${lChart()}<h2>progress pics</h2>${P.some(p=>!p.kind)?photoGrid(P.filter(p=>!p.kind).sort((a,b)=>a.date<b.date?1:-1)):`<p class='hint'>no photos yet. add one from the log tab.</p>`}${vRep()}`}
+<h2>Lift trend</h2><label>Exercise<select id="lsel">${["push","pull","arms","legs","core","other"].map(g=>{const o=names.filter(n=>((findEx(n)||{}).t||"other")===g);return o.length?`<optgroup label="${g}">${o.map(n=>`<option${n===liftSel?" selected":""}>${esc(n)}</option>`).join("")}</optgroup>`:""}).join("")}</select></label>${lChart()}<h2>progress pics</h2>${P.some(p=>!p.kind)?photoGrid(P.filter(p=>!p.kind).sort((a,b)=>a.date<b.date?1:-1)):`<p class='hint'>no photos yet. add one from the log tab.</p>`}${vRep()}`}
 
 function vPr(){const p=prs(),d1=new Date(),d2=new Date();d1.setDate(d1.getDate()-6);d2.setDate(d2.getDate()-30);const w=iso(d1),m=iso(d2);
 const ks=Object.keys(p).sort(),nWk=ks.filter(n=>p[n].d&&p[n].d>=w).length;
 return `<h2>Personal records</h2><p class="hint">Heaviest weight per lift, with the most reps at that weight. Updates itself when you log.${nWk?" "+nWk+" new this week.":""}</p><div class="prs" style="margin-top:12px">`+
-ks.map(n=>{const r=p[n],wk=r.d&&r.d>=w,mo=!wk&&r.d&&r.d>=m;return`<div class="pr${wk?" wk":mo?" new":""}"><span>${esc(n)}</span><b>${r.w} x ${r.r}</b><i>${r.d?fmt(r.d):"earlier"}</i>${wk?"<em class='wk'>new this week</em>":mo?"<em>new this month</em>":""}</div>`}).join("")+"</div>"}
+ks.map(n=>{const r=p[n],wk=r.d&&r.d>=w,mo=!wk&&r.d&&r.d>=m;return`<div class="pr${wk?" wk":mo?" new":""}"><span>${esc(n)}</span><b>${r.w} x ${r.r}</b><i>${r.d?fmt(r.d):"earlier"}, ${mgOf(n)}</i>${wk?"<em class='wk'>new this week</em>":mo?"<em>new this month</em>":""}</div>`}).join("")+"</div>"}
 
 function vData(){return `<h2>Backup</h2><p class="hint">Your data is saved in this browser only. Copy this text somewhere safe, or paste a backup here to restore it on another device. Progress photos are stored separately on this device and are not included.</p><textarea id="bk">${esc(JSON.stringify(S))}</textarea><button class="btn" data-a="load">Load pasted backup</button><button class="btn ghost" data-a="reset">${confirmReset?"Tap again to erase everything":"Erase all data"}</button>`}
 
 function render(){document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("act",b.dataset.tab===tab);if(b.dataset.tab==="insp")b.classList.toggle("hid",tab!=="insp")});
 $("#stats").innerHTML=stats();$("#view").innerHTML=({log:vLog,cal:vCal,prog:vProg,pr:vPr,insp:vInsp,data:vData})[tab]();showViewer()}
 
-function addLog(){const ex=$("#ex").value.trim(),w=parseFloat($("#w").value),r=parseInt($("#r").value),s=parseInt($("#s").value)||3,date=$("#date").value||sel;
+function addLog(){let ex=$("#ex").value.trim(),w=parseFloat($("#w").value),r=parseInt($("#r").value),s=parseInt($("#s").value)||3,date=$("#date").value||sel;
 if(!ex||isNaN(w)||isNaN(r)){toast("Add an exercise, weight and reps");return}
+const fx=findEx(ex);if(fx)ex=fx.n;else{const mgv=($("#xmg")||{}).value;if(!mgv){toast("Pick a muscle group for this new exercise");return}S.ex[ex]={mg:mgv,t:TAG[mgv]}}
 const b=prs()[ex];S.logs.push({id:uid(),date,ex,w,r,s});save();sel=date;const p=prs()[ex];
 if(p.d===date&&p.w===w&&p.r===r&&(!b||b.w!==w||b.r!==r))prFx(ex,w,r);else toast("Logged")}
 const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return iso(d)};
@@ -347,15 +351,36 @@ const AB=[{n:'crunch',c:'flex',d:1,m:1},{n:'reverse crunch',c:'flex',d:2,h:1,hf:
 {n:'leg raise',c:'leg',d:2,h:1,hf:1},{n:'flutter kicks',c:'leg',d:1,hf:1}];
 let abSel=S.abs.length?[...S.abs[S.abs.length-1].ex]:[],repText='';
 function abList(){const a=S.abs.filter(c=>c.date===sel);return a.length?`<ul class='list'>`+a.map(c=>`<li><span>ab circuit: ${c.ex.map(esc).join(', ')}</span><button data-delab='${c.id}' aria-label='Delete'>×</button></li>`).join('')+'</ul>':''}
-const MG={'Converging chest press':'chest','Cable chest press':'chest','Incline DB press':'chest','Pec fly':'chest','Lat pulldown':'back','Seated row':'back','Low row':'back','Converging shoulder press':'shoulders','Cable shoulder press':'shoulders','DB shoulder press':'shoulders','Plate-loaded shoulder press':'shoulders','Cable lateral raise':'side delts','Rear delt':'rear delts','Bicep machine':'biceps','Barbell curl':'biceps','Overhead DB tricep ext':'triceps','Tricep pushdown':'triceps','Leg press':'quads','Leg extension':'quads','Leg curl':'hamstrings','Romanian deadlift':'hamstrings','Hip adduction':'adductors','Hip abduction':'glutes','Calf raise':'calves'};
+const TAG={chest:'push',shoulders:'push','side delts':'push',triceps:'arms',biceps:'arms',back:'pull','rear delts':'pull',traps:'pull',quads:'legs',hamstrings:'legs',glutes:'legs',adductors:'legs',calves:'legs',abs:'core'};
+const LIB={chest:['Converging chest press','Cable chest press','Incline DB press','Flat DB press','Barbell bench press','Incline barbell press','Machine chest press','Smith machine bench press','Pec fly','Cable fly','Low-to-high cable fly','Push-up','Chest dips'],
+shoulders:['Converging shoulder press','Cable shoulder press','DB shoulder press','Plate-loaded shoulder press','Machine shoulder press','Barbell overhead press','Arnold press','Front raise'],
+'side delts':['Cable lateral raise','DB lateral raise','Machine lateral raise'],
+'rear delts':['Rear delt','Reverse DB fly','Cable rear delt fly','Face pull'],
+back:['Lat pulldown','Wide-grip pulldown','Close-grip pulldown','Pull-up','Assisted pull-up','Seated row','Low row','Dual pulley row','Cable row','Chest-supported row','T-bar row','Barbell row','One-arm DB row','Straight-arm pulldown','Back extension','Deadlift'],
+traps:['Barbell shrug','DB shrug','Machine shrug'],
+biceps:['Bicep machine','Barbell curl','DB curl','Hammer curl','Cable curl','Preacher curl','Incline DB curl'],
+triceps:['Tricep pushdown','Rope pushdown','Overhead DB tricep ext','Cable overhead extension','Skull crusher','Close-grip bench press','Tricep dips machine','Tricep kickback'],
+quads:['Leg press','Leg extension','Hack squat','Barbell squat','Smith machine squat','Goblet squat','Bulgarian split squat','Walking lunge'],
+hamstrings:['Leg curl','Lying leg curl','Romanian deadlift','Stiff-leg deadlift','Glute-ham raise'],
+glutes:['Hip thrust','Hip abduction','Cable kickback','Cable pull-through'],
+adductors:['Hip adduction'],calves:['Calf raise','Seated calf raise','Leg press calf raise'],
+abs:['Cable crunch','Hanging knee raise','Hanging leg raise','Ab wheel rollout','Decline sit-up']};
+const allEx=()=>{const a=[];for(const mg in LIB)LIB[mg].forEach(n=>a.push({n,mg,t:TAG[mg]}));for(const n in (S.ex||{}))a.push({n,mg:S.ex[n].mg,t:S.ex[n].t||TAG[S.ex[n].mg]||'push'});return a};
+const findEx=n=>allEx().find(e=>e.n.toLowerCase()===String(n).toLowerCase());
+const mgOf=n=>(findEx(n)||{}).mg||'other';
+let exF='all';const upT=['push','pull','arms'];
+function exList(){return allEx().filter(e=>exF==='all'||(exF==='upper'?upT.includes(e.t):exF==='lower'?e.t==='legs':e.t===exF)).sort((a,b)=>a.n<b.n?-1:1)}
+function pickHTML(){return `<div class='abpick'>${['all','upper','lower','push','pull','legs','arms','core'].map(k=>`<button class='ab${exF===k?' on':''}' data-exf='${k}'>${k}</button>`).join('')}</div><div class='expick'>${exList().map(e=>`<button class='ab' data-pick='${esc(e.n)}'>${esc(e.n)}<i>${e.mg}</i></button>`).join('')}</div>`}
+function drawPick(){const el=$('#expk');if(el)el.innerHTML=pickHTML()}
 const MUS=['chest','back','shoulders','side delts','rear delts','biceps','triceps','quads','hamstrings','calves'];
-function genReport(){const w0=ago(6),p0=ago(13),p1=ago(7),mg=n=>MG[n]||'other',v=id=>($(id)||{}).value||'';
+function genReport(){const w0=ago(6),p0=ago(13),p1=ago(7),mg=mgOf,v=id=>($(id)||{}).value||'';
 const wk=S.logs.filter(l=>l.date>=w0&&l.date<=T),days=[...new Set(wk.map(l=>l.date))].sort(),pd=new Set(S.logs.filter(l=>l.date>=p0&&l.date<=p1).map(l=>l.date)).size;
 const L=['weekly gym report, '+w0+' to '+T,'context: slow bulk (about 0.25 to 0.6 kg a month), upper/lower split, vegan diet in progress.',
 'sessions: '+days.length+' ('+(days.map(fmt).join(', ')||'none')+'); previous week: '+pd];
 const g={};wk.forEach(l=>{g[mg(l.ex)]=(g[mg(l.ex)]||0)+l.s});
 L.push('hard sets per muscle group this week (target roughly 10 to 16 for the main groups):');Object.keys(g).sort().forEach(k=>L.push('- '+k+': '+g[k]));
 const miss=MUS.filter(k=>!g[k]);if(miss.length)L.push('no sets logged for: '+miss.join(', '));
+const tg={};wk.forEach(l=>{const e=findEx(l.ex),t=e?e.t:'other';tg[t]=(tg[t]||0)+l.s});L.push('sets by split: '+(Object.keys(tg).map(k=>k+' '+tg[k]).join(', ')||'none'));
 L.push('lifts (top set this week vs the last time before this week):');
 const top=a=>a.reduce((x,y)=>y.w>x.w||(y.w===x.w&&y.r>x.r)?y:x);
 [...new Set(wk.map(l=>l.ex))].sort().forEach(n=>{const t=top(wk.filter(l=>l.ex===n)),pr=S.logs.filter(l=>l.ex===n&&l.date<w0);let note='first time logged';
@@ -408,10 +433,12 @@ function vRep(){return `<h2>weekly report</h2><p class='hint'>fill in the quick 
 function addW(){const kg=fromU(parseFloat($("#kg").value)),date=$("#wdate").value||sel;if(isNaN(kg)){toast("Enter your weight");return}
 S.weights.push({id:uid(),date,kg:+kg.toFixed(3)});save();sel=date;toast("Weigh-in saved")}
 
-document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data-a],[data-day],[data-del],[data-delw],[data-photo],[data-ab],[data-delab]");if(!b)return;const d=b.dataset;
+document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data-a],[data-day],[data-del],[data-delw],[data-photo],[data-ab],[data-delab],[data-exf],[data-pick]");if(!b)return;const d=b.dataset;
 if(d.tab){tab=d.tab;confirmReset=false}
 else if(d.a==="prev"||d.a==="next"){cal.m+=d.a==="prev"?-1:1;if(cal.m<0){cal.m=11;cal.y--}if(cal.m>11){cal.m=0;cal.y++}}
 else if(d.a==="savedate"){const nv=$('#vdate').value,q=P.find(x=>x.id===viewing);if(q&&nv){q.date=nv;const{url,...r}=q;req(st('readwrite').put(r)).then(()=>toast('date updated')).catch(()=>toast('could not update'));sel=nv}}
+else if(d.exf){exF=d.exf;drawPick();return}
+else if(d.pick){const ei=$('#ex');if(ei){ei.value=d.pick;ei.dispatchEvent(new Event('input',{bubbles:true}));const wi=$('#w');if(wi)wi.focus()}return}
 else if(d.ab){const i=abSel.indexOf(d.ab);if(i>=0)abSel.splice(i,1);else if(abSel.length<8)abSel.push(d.ab);else toast('8 moves is the max')}
 else if(d.delab){S.abs=S.abs.filter(c=>c.id!==d.delab);save()}
 else if(d.a==='abusual'){abSel=['crunch','plank','side plank','ankle touches','bicycle crunch'];tmOpen('usual')}
@@ -437,10 +464,10 @@ else if(d.del){S.logs=S.logs.filter(l=>l.id!==d.del);save()}
 else if(d.delw){S.weights=S.weights.filter(w=>w.id!==d.delw);save()}
 else if(d.a==="addlog")addLog();
 else if(d.a==="addw")addW();
-else if(d.a==="load"){try{const o=JSON.parse($("#bk").value);if(!Array.isArray(o.logs)||!Array.isArray(o.weights))throw 0;o.abs=o.abs||[];S=o;save();toast("Backup loaded")}catch(x){toast("That text isn't a valid backup")}}
+else if(d.a==="load"){try{const o=JSON.parse($("#bk").value);if(!Array.isArray(o.logs)||!Array.isArray(o.weights))throw 0;o.abs=o.abs||[];o.ex=o.ex||{};S=o;save();toast("Backup loaded")}catch(x){toast("That text isn't a valid backup")}}
 else if(d.a==="reset"){if(confirmReset){S=seed();save();confirmReset=false;toast("All data erased")}else{confirmReset=true}}
 render()});
-document.addEventListener("input",e=>{if(e.target.id==="ex"&&$("#hint"))$("#hint").textContent=hint(e.target.value.trim())});
+document.addEventListener("input",e=>{if(e.target.id==="ex"&&$("#hint")){const v=e.target.value.trim(),f=v&&findEx(v);$("#hint").textContent=hint(f?f.n:v)+(f?" muscle: "+f.mg+", split: "+f.t+".":"");$("#xnew").innerHTML=v&&!f?`<div class='f'><label class='wide'>new exercise: pick a muscle group<select id='xmg'><option value=''>choose</option>${Object.keys(LIB).map(k=>`<option>${k}</option>`).join('')}</select></label></div>`:''}});
 document.addEventListener("change",e=>{if(e.target.id==="date"){sel=e.target.value||sel;render()}else if(e.target.id==="lsel"){liftSel=e.target.value;render()}else if(e.target.id==="pic"){const f=e.target.files[0];e.target.value="";addPhoto(f)}else if(e.target.id==="ipic"){const fs=[...e.target.files];e.target.value="";addInspo(fs)}});
 const THEMES=[
 {n:'gojo',g:'jujutsu kaisen',bg:'#000000',ink:'#ffffff',mute:'#9a9a9a',b:'#7596b5',o:'#e2823a',d:1},
