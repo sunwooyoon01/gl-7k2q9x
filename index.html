@@ -210,6 +210,9 @@ h1{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-ac
 .expick{display:flex;flex-wrap:wrap;max-height:176px;overflow-y:auto;margin:6px 0 12px;padding:6px;border:1px solid var(--line)}
 .ab i{font-style:normal;color:var(--mute);font-size:11px;margin-left:6px}.ab.on i{color:var(--bg)}
 .mgx{font-style:normal;color:var(--mute);font-size:12px;flex:none}
+.bst{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));border:1px solid var(--line);margin:10px 0}
+.bst div{padding:10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -1px -1px 0}
+.bst b{display:block;font-size:22px;font-weight:400}.bst span{font-size:11px;color:var(--mute)}
 </style>
 </head>
 <body>
@@ -240,8 +243,8 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const T=iso(new Date());
 const FOODS0=()=>[{id:'f1',n:'chipotle chicken bowl',k:850,p:45},{id:'f2',n:'protein shake',k:430,p:32},{id:'f3',n:'yogurt bowl',k:530,p:15},{id:'f4',n:'granola bar',k:200,p:5},{id:'f5',n:'banana',k:105,p:1},{id:'f6',n:'falafel wrap',k:650,p:20},{id:'f7',n:'chips, small bag',k:200,p:2},{id:'f8',n:'cookie',k:250,p:3}];
 const food0=()=>({foods:FOODS0(),log:[],tk:2500,tp:125});
-function seed(){return{logs:[],weights:[],abs:[],ex:{},food:food0()}}
-function load(){try{const t=localStorage.getItem(KEY);if(t){const o=JSON.parse(t);if(o&&Array.isArray(o.logs)&&Array.isArray(o.weights)){o.abs=o.abs||[];o.ex=o.ex||{};o.food=o.food||food0();return o}}}catch(e){}return seed()}
+function seed(){return{logs:[],weights:[],abs:[],ex:{},food:food0(),prof:{h:170,a:25,lu:'lb'},meas:[]}}
+function load(){try{const t=localStorage.getItem(KEY);if(t){const o=JSON.parse(t);if(o&&Array.isArray(o.logs)&&Array.isArray(o.weights)){o.abs=o.abs||[];o.ex=o.ex||{};o.food=o.food||food0();o.prof=o.prof||{h:170,a:25,lu:'lb'};o.meas=o.meas||[];return o}}}catch(e){}return seed()}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let S=load(),tab="log",sel=T,confirmReset=false,liftSel="Leg press";
 let P=[],DB=null,viewing=null,confirmPhoto=null;
@@ -325,7 +328,7 @@ function vProg(){const p=prs(),cols=["var(--red)","var(--blue)","var(--yellow)",
 const ws=[...S.weights].sort((a,b)=>a.date<b.date?-1:1);const chg=ws.length>1?(ws[ws.length-1].kg-ws[0].kg):0;
 const bars=Object.keys(TG()).map((n,i)=>{const b=p[n]?p[n].w:0;return`<div class="lift"><div class="row"><span>${n}</span><em>${b} of ${TG()[n]}</em></div><div class="track"><div class="now" style="width:${Math.min(100,b/TG()[n]*100)}%;background:${cols[i]}"></div></div></div>`}).join("");
 const names=[...new Set(S.logs.map(l=>l.ex))].sort();
-return `<h2>Bodyweight</h2><p class="hint">${ws.length>1?`Change since first weigh-in: ${chg>=0?"+":""}${toU(chg).toFixed(2)} ${unit}. `:""}Dots are your weigh-ins. Dashed lines are the projected range of ${unit==="lb"?"0.55 to 1.3 lb":"0.25 to 0.6 kg"} a month.</p>${wChart()}
+return vStats()+`<h2>Bodyweight</h2><p class="hint">${ws.length>1?`Change since first weigh-in: ${chg>=0?"+":""}${toU(chg).toFixed(2)} ${unit}. `:""}Dots are your weigh-ins. Dashed lines are the projected range of ${unit==="lb"?"0.55 to 1.3 lb":"0.25 to 0.6 kg"} a month.</p>${wChart()}
 <ul class="list">${[...ws].reverse().slice(0,6).map(w=>`<li><span>${fmt(w.date)}: ${fw(w.kg)} ${unit}</span><button data-delw="${w.id}" aria-label="Delete">×</button></li>`).join("")}</ul>
 <h2>Progress to week 24 targets</h2>${bars}
 <h2>Lift trend</h2><label>Exercise<select id="lsel">${["push","pull","arms","legs","core","other"].map(g=>{const o=names.filter(n=>((findEx(n)||{}).t||"other")===g);return o.length?`<optgroup label="${g}">${o.map(n=>`<option${n===liftSel?" selected":""}>${esc(n)}</option>`).join("")}</optgroup>`:""}).join("")}</select></label>${lChart()}<h2>progress pics</h2>${P.some(p=>!p.kind)?photoGrid(P.filter(p=>!p.kind).sort((a,b)=>a.date<b.date?1:-1)):`<p class='hint'>no photos yet. add one from the log tab.</p>`}${vRep()}`}
@@ -393,6 +396,7 @@ const fa=f7();L.push('nutrition (estimates): '+(fa?'average '+fa.k+' kcal and '+
 const ab=S.abs.filter(c=>c.date>=w0&&c.date<=T);L.push('ab circuits: '+ab.length+(ab.length?' ('+ab.map(c=>fmt(c.date)+': '+c.ex.join(', ')).join(' | ')+')':''));
 const ws=[...S.weights].sort((a,b)=>a.date<b.date?-1:1),avg=a=>a.length?a.reduce((x,y)=>x+y.kg,0)/a.length:null,w1=ws.filter(x=>x.date>=w0),w2=ws.filter(x=>x.date>=p0&&x.date<=p1),a1=avg(w1),a2=avg(w2);
 L.push('bodyweight: '+(a1==null?'no weigh-ins this week':fw(a1)+' '+unit+' avg this week ('+w1.length+' weigh-in'+(w1.length>1?'s':'')+')'+(a2!=null?', '+fw(a2)+' '+unit+' last week':'')+(ws.length>1?', '+fw(ws[ws.length-1].kg-ws[0].kg)+' '+unit+' change since the first weigh-in':'')));
+const bo=bs();L.push('body stats: '+(bo.bmi?'BMI '+bo.bmi.toFixed(1)+', maintenance about '+Math.round(bo.m1/10)*10+' to '+Math.round(bo.m2/10)*10+' kcal'+(bo.rate!=null?', recent trend '+(bo.rate>=0?'+':'')+bo.rate.toFixed(2)+' kg a month':'')+(bo.bf!=null?', estimated body fat '+bo.bf.toFixed(1)+'%':''):'no weigh-ins yet'));
 L.push('how i felt: sleep '+(v('#rsl')||'?')+' h avg, energy '+(v('#ren')||'?')+'/5, appetite '+(v('#rap')||'?')+'/5'+(v('#rno')?'; notes: '+v('#rno'):''));
 L.push('please review: is my volume balanced, am i progressing, and what should i change next week?');return L.join('\n')}
 let tm=null,tmInt=null,tmLock=null,abTier='medium',abMin=10;
@@ -450,6 +454,39 @@ ${ed?`<button class='btn' data-a='fupd'>Update food</button><button class='btn g
 <h2>daily targets</h2><div class='f'><label>calories<input id='tk' type='number' inputmode='numeric' value='${F.tk}'></label><label>protein (g)<input id='tp' type='number' inputmode='numeric' value='${F.tp}'></label></div>`}
 function fRead(){const n=($('#fn')||{}).value.trim(),k=parseFloat(($('#fk')||{}).value),p=parseFloat(($('#fp')||{}).value);if(!n||isNaN(k)){toast('add a name and calories');return null}return{n,k,p:isNaN(p)?0:p}}
 function fLog(n,k,p){S.food.log.push({id:uid(),date:sel,n,k:k*fMult,p:p*fMult,m:fMult});save()}
+const BARS={'Barbell bench press':[.5,.75,1.25,1.75,2.25],'Barbell squat':[.75,1.25,1.75,2.5,3.25],'Deadlift':[1,1.5,2,3,3.75],'Barbell overhead press':[.35,.55,.8,1.1,1.4]},LVN=['beginner','novice','intermediate','advanced','elite'];
+const e1=l=>l.w*(1+Math.min(l.r,12)/30);
+function bs(){const P=S.prof,ws=[...S.weights].sort((a,b)=>a.date<b.date?-1:1),o={};if(!ws.length)return o;
+const last=ws[ws.length-1];o.kg=last.kg;
+const av=(f,t)=>{const x=ws.filter(w=>w.date>=ago(t)&&w.date<=ago(f));return x.length?x.reduce((s,w)=>s+w.kg,0)/x.length:null};
+o.a7=av(0,6);o.a14=av(0,13);const ea=av(14,27);
+if(o.a14!=null&&ea!=null)o.rate=(o.a14-ea)*30/14;
+else if(ws.length>1){const sp=(new Date(last.date)-new Date(ws[0].date))/864e5;if(sp>=14)o.rate=(last.kg-ws[0].kg)/sp*30}
+o.bw=o.a7!=null?o.a7:o.kg;o.bmi=o.bw/Math.pow(P.h/100,2);o.bmr=10*o.bw+6.25*P.h-5*P.a+5;o.m1=o.bmr*1.4;o.m2=o.bmr*1.55;
+const ms=[...S.meas].sort((a,b)=>a.date<b.date?-1:1);
+if(ms.length){const m=ms[ms.length-1],wn=m.waist-m.neck;if(wn>0){o.bf=495/(1.0324-0.19077*Math.log10(wn)+0.15456*Math.log10(P.h))-450;o.lean=o.bw*(1-o.bf/100);o.md=m.date}}
+return o}
+function bmiCat(b){return b<18.5?'underweight':b<25?'healthy range':b<30?'overweight range':'obese range'}
+function liftStats(){const by={};S.logs.forEach(l=>{(by[l.ex]=by[l.ex]||[]).push(l)});const out=[];
+for(const n in by){const a=by[n],c=a.filter(l=>l.date>=ago(27)),pr=a.filter(l=>l.date<ago(27));if(!c.length)continue;out.push({n,cur:Math.max(...c.map(e1)),prev:pr.length?Math.max(...pr.map(e1)):null,last:a.reduce((m,l)=>l.date>m?l.date:m,'')})}
+return out.sort((x,y)=>x.last<y.last?1:-1)}
+function vStats(){const P=S.prof,o=bs(),box=(b,s)=>`<div><b>${b}</b><span>${s}</span></div>`;
+let g='',tip='';
+if(o.bmi){const r=o.rate;
+g=box(o.bmi.toFixed(1),'bmi, '+bmiCat(o.bmi))+box(fw(o.a7!=null?o.a7:o.kg)+' '+unit,o.a7!=null?'7 day average':'latest weigh-in')+(o.a14!=null?box(fw(o.a14)+' '+unit,'14 day average'):'')+(r!=null?box((r>=0?'+':'')+toU(r).toFixed(2)+' '+unit,'per month, recent trend'):'')+box(Math.round(o.m1/10)*10+' to '+Math.round(o.m2/10)*10,'maintenance kcal, estimate')+box(Math.round((o.m1+250)/10)*10+' to '+Math.round((o.m2+400)/10)*10,'bulk target kcal')+(o.bf!=null?box(o.bf.toFixed(1)+'%','body fat estimate, '+fmt(o.md))+box(fw(o.lean)+' '+unit,'lean mass estimate'):'');
+if(r!=null)tip=r<0?'your weight is trending down, which is the wrong direction for a bulk. add 150 to 250 kcal a day.':r<0.25?'slower than the 0.25 to 0.6 kg a month target. if this holds for 3 weeks, add 150 to 250 kcal a day.':r>0.6?'faster than the target, so more of the gain is probably fat. trim 150 to 200 kcal a day.':'right inside the 0.25 to 0.6 kg a month target.';
+else tip='the monthly trend needs weigh-ins spread over at least 2 weeks.'}
+const ls=liftStats(),bw=o.bw;
+const lv=Object.keys(BARS).map(n=>{const x=ls.find(y=>y.n===n);if(!x||!bw)return'';const ratio=x.cur*(P.lu==='lb'?0.4536:1)/bw;let i=-1;BARS[n].forEach((t,k)=>{if(ratio>=t)i=k});return `<li><span>${n}: ${ratio.toFixed(2)}x bodyweight</span><span class='hint' style='flex:none'>${i<0?'below beginner':LVN[i]}</span></li>`}).join('');
+const ms=[...S.meas].sort((a,b)=>a.date<b.date?1:-1).slice(0,4);
+return `<h2>body stats</h2><div class='f'><label>height (cm)<input id='pph' type='number' inputmode='numeric' value='${P.h}'></label><label>age<input id='ppa' type='number' inputmode='numeric' value='${P.a}'></label><label>lift weights in<select id='plu'><option${P.lu==='lb'?' selected':''}>lb</option><option${P.lu==='kg'?' selected':''}>kg</option></select></label></div>
+${o.bmi?`<div class='bst'>${g}</div><p class='hint'>${tip} maintenance assumes lifting 4 to 5 days a week and uses a standard formula for men, so it can be off by a few hundred calories. BMI uses your 7 day average weight.</p>`:`<p class='hint'>log a weigh-in on the Log tab to see bmi, calorie estimates and your weight trend.</p>`}
+<h2>strength trend</h2><p class='hint'>estimated one rep max from your best set in the last 4 weeks, compared with your best before that. rough, and machine numbers differ between brands.</p>
+<ul class='list'>${ls.slice(0,10).map(x=>{const d=x.prev?Math.round((x.cur/x.prev-1)*100):null;return `<li><span>${esc(x.n)}: ${Math.round(x.cur*2)/2}</span><span class='hint' style='flex:none'>${d==null?'new':(d>=0?'+':'')+d+'% vs earlier'}</span></li>`}).join('')}</ul>${ls.length?'':`<p class='hint'>log some lifts to see this.</p>`}
+${lv?`<p class='hint'>barbell lifts against rough bodyweight benchmarks for men. these are general guides, not exact rankings.</p><ul class='list'>${lv}</ul>`:''}
+<h2>body fat estimate</h2><p class='hint'>measure once a month, same time of day. neck just below the larynx and waist at the navel, in cm. the us navy formula is usually off by 3 to 4 points, so watch the trend more than the number.</p>
+<div class='f'><label>date<input id='mdt' type='date' value='${T}'></label><label>neck (cm)<input id='mneck' type='number' step='0.5' inputmode='decimal'></label><label>waist (cm)<input id='mwaist' type='number' step='0.5' inputmode='decimal'></label></div><button class='btn' data-a='addm'>Save measurement</button>
+<ul class='list'>${ms.map(m=>`<li><span>${fmt(m.date)}: neck ${m.neck}, waist ${m.waist}</span><button data-a='delm' data-id='${m.id}' aria-label='Delete'>×</button></li>`).join('')}</ul>`}
 function addW(){const kg=fromU(parseFloat($("#kg").value)),date=$("#wdate").value||sel;if(isNaN(kg)){toast("Enter your weight");return}
 S.weights.push({id:uid(),date,kg:+kg.toFixed(3)});save();sel=date;toast("Weigh-in saved")}
 
@@ -457,6 +494,8 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data
 if(d.tab){tab=d.tab;confirmReset=false}
 else if(d.a==="prev"||d.a==="next"){cal.m+=d.a==="prev"?-1:1;if(cal.m<0){cal.m=11;cal.y--}if(cal.m>11){cal.m=0;cal.y++}}
 else if(d.a==="savedate"){const nv=$('#vdate').value,q=P.find(x=>x.id===viewing);if(q&&nv){q.date=nv;const{url,...r}=q;req(st('readwrite').put(r)).then(()=>toast('date updated')).catch(()=>toast('could not update'));sel=nv}}
+else if(d.a==='addm'){const dd=($('#mdt')||{}).value||T,nk=parseFloat($('#mneck').value),wa=parseFloat($('#mwaist').value);if(!(nk>0)||!(wa>nk)){toast('enter neck and waist in cm (waist is larger)');return}S.meas.push({id:uid(),date:dd,neck:nk,waist:wa});save();toast('measurement saved')}
+else if(d.a==='delm'){S.meas=S.meas.filter(m=>m.id!==d.id);save()}
 else if(d.fmult)fMult=Number(d.fmult);
 else if(d.food){const x=S.food.foods.find(y=>y.id===d.food);if(x){if(fEdit)fEdit=x.id;else{fLog(x.n,x.k,x.p);toast(x.n+(fMult!==1?' x'+fMult:'')+' added')}}}
 else if(d.a==='fedit')fEdit=fEdit?null:'-';
@@ -492,11 +531,11 @@ else if(d.del){S.logs=S.logs.filter(l=>l.id!==d.del);save()}
 else if(d.delw){S.weights=S.weights.filter(w=>w.id!==d.delw);save()}
 else if(d.a==="addlog")addLog();
 else if(d.a==="addw")addW();
-else if(d.a==="load"){try{const o=JSON.parse($("#bk").value);if(!Array.isArray(o.logs)||!Array.isArray(o.weights))throw 0;o.abs=o.abs||[];o.ex=o.ex||{};o.food=o.food||food0();S=o;save();toast("Backup loaded")}catch(x){toast("That text isn't a valid backup")}}
+else if(d.a==="load"){try{const o=JSON.parse($("#bk").value);if(!Array.isArray(o.logs)||!Array.isArray(o.weights))throw 0;o.abs=o.abs||[];o.ex=o.ex||{};o.food=o.food||food0();o.prof=o.prof||{h:170,a:25,lu:'lb'};o.meas=o.meas||[];S=o;save();toast("Backup loaded")}catch(x){toast("That text isn't a valid backup")}}
 else if(d.a==="reset"){if(confirmReset){S=seed();save();confirmReset=false;toast("All data erased")}else{confirmReset=true}}
 render()});
 document.addEventListener("input",e=>{if(e.target.id==="ex"&&$("#hint")){const v=e.target.value.trim(),f=v&&findEx(v);$("#hint").textContent=hint(f?f.n:v)+(f?" muscle: "+f.mg+", split: "+f.t+".":"");$("#xnew").innerHTML=v&&!f?`<div class='f'><label class='wide'>new exercise: pick a muscle group<select id='xmg'><option value=''>choose</option>${Object.keys(LIB).map(k=>`<option>${k}</option>`).join('')}</select></label></div>`:''}});
-document.addEventListener("change",e=>{if(e.target.id==="fdate"){sel=e.target.value||sel;render();return}if(e.target.id==="tk"||e.target.id==="tp"){const v=parseInt(e.target.value);if(v>0){S.food[e.target.id]=v;save();render()}return}if(e.target.id==="date"){sel=e.target.value||sel;render()}else if(e.target.id==="lsel"){liftSel=e.target.value;render()}else if(e.target.id==="pic"){const f=e.target.files[0];e.target.value="";addPhoto(f)}else if(e.target.id==="ipic"){const fs=[...e.target.files];e.target.value="";addInspo(fs)}});
+document.addEventListener("change",e=>{if(e.target.id==="pph"||e.target.id==="ppa"){const v=parseFloat(e.target.value);if(v>0){S.prof[e.target.id==="pph"?"h":"a"]=v;save();render()}return}if(e.target.id==="plu"){S.prof.lu=e.target.value;save();render();return}if(e.target.id==="fdate"){sel=e.target.value||sel;render();return}if(e.target.id==="tk"||e.target.id==="tp"){const v=parseInt(e.target.value);if(v>0){S.food[e.target.id]=v;save();render()}return}if(e.target.id==="date"){sel=e.target.value||sel;render()}else if(e.target.id==="lsel"){liftSel=e.target.value;render()}else if(e.target.id==="pic"){const f=e.target.files[0];e.target.value="";addPhoto(f)}else if(e.target.id==="ipic"){const fs=[...e.target.files];e.target.value="";addInspo(fs)}});
 const THEMES=[
 {n:'gojo',g:'jujutsu kaisen',bg:'#000000',ink:'#ffffff',mute:'#9a9a9a',b:'#7596b5',o:'#e2823a',d:1},
 {n:'gaara',g:'naruto',bg:'#e8dcc4',ink:'#3a2a20',mute:'#7a6a58',b:'#a63a2c',o:'#4a6a7a',d:0},
